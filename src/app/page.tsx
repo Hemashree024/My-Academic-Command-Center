@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TaskForm } from '@/components/TaskForm';
 import { TaskList } from '@/components/TaskList';
 import useLocalStorage from '@/hooks/useLocalStorage';
@@ -11,7 +11,14 @@ import { useToast } from "@/hooks/use-toast";
 export default function Home() {
   const [tasks, setTasks] = useLocalStorage<Task[]>('tasks', []);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-   const { toast } = useToast();
+  const [mounted, setMounted] = useState(false); // State to track client-side mounting
+  const { toast } = useToast();
+
+  // Set mounted to true only on the client-side after initial render
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
 
   // Handler to add a new task
   const handleAddTask = (newTaskData: Omit<Task, 'id' | 'completed'>) => {
@@ -29,17 +36,22 @@ export default function Home() {
 
   // Handler to toggle task completion status
   const handleToggleComplete = (id: string) => {
+    const taskToUpdate = tasks.find(task => task.id === id);
+    const wasCompleted = taskToUpdate?.completed; // Capture state before toggle
+
     setTasks(prevTasks =>
       prevTasks.map(task =>
         task.id === id ? { ...task, completed: !task.completed } : task
       )
     );
-     const updatedTask = tasks.find(task => task.id === id);
-     if (updatedTask) {
+
+    // Use the captured state to determine the toast message
+     if (taskToUpdate) {
         toast({
-          title: `Task ${updatedTask.completed ? 'Incomplete' : 'Completed'}`,
-          description: `"${updatedTask.description}" marked as ${updatedTask.completed ? 'incomplete' : 'complete'}.`,
-          variant: updatedTask.completed ? undefined : "default", // Use default styling or a custom 'success' style if defined
+          title: `Task ${wasCompleted ? 'Incomplete' : 'Completed'}`,
+          description: `"${taskToUpdate.description}" marked as ${wasCompleted ? 'incomplete' : 'complete'}.`,
+          // Variant logic remains the same based on the *new* state (which is !wasCompleted)
+          variant: !wasCompleted ? undefined : "default",
         });
      }
   };
@@ -94,12 +106,15 @@ export default function Home() {
           onCancelEdit={handleCancelEdit}
         />
 
-      <TaskList
-        tasks={tasks}
-        onToggleComplete={handleToggleComplete}
-        onDeleteTask={handleDeleteTask}
-        onEditTask={handleSetEditTask} // Pass the function to initiate editing
-      />
+      {/* Only render TaskList on the client after mounting */}
+      {mounted && (
+          <TaskList
+            tasks={tasks}
+            onToggleComplete={handleToggleComplete}
+            onDeleteTask={handleDeleteTask}
+            onEditTask={handleSetEditTask} // Pass the function to initiate editing
+          />
+      )}
        <Toaster />
     </main>
   );
