@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { LayoutDashboard, BookCheck, Briefcase, FolderKanban, Award, GraduationCap, ArrowRight } from 'lucide-react';
+import { LayoutDashboard, BookCheck, Briefcase, FolderKanban, Award, GraduationCap, ArrowRight, CaseLower } from 'lucide-react'; // Added CaseLower
 import Link from 'next/link';
 import type { Task, Project, CollegeProject, PlacementActivity, Certificate, Course } from '@/types'; // Consolidate type imports
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
@@ -25,8 +25,12 @@ export default function DashboardPage() {
     const getData = <T,>(key: string): T[] => {
         // Check window existence is redundant now due to isClient state
         try {
-            const item = localStorage.getItem(key);
-            return item ? JSON.parse(item) : [];
+            // Ensure this runs only on the client
+            if (typeof window !== 'undefined') {
+                const item = localStorage.getItem(key);
+                return item ? JSON.parse(item) : [];
+            }
+            return []; // Return empty array if not on client
         } catch (error) {
             console.error(`Error reading localStorage key "${key}":`, error);
             return [];
@@ -35,7 +39,8 @@ export default function DashboardPage() {
 
 
     useEffect(() => {
-        setIsClient(true); // Component has mounted
+        // Ensure this runs only on the client
+        setIsClient(true);
         // Fetch username and data from local storage on client-side
         const storedName = localStorage.getItem('loggedInUserName');
         if (storedName) {
@@ -49,7 +54,7 @@ export default function DashboardPage() {
             const certificateKey = `${storedName}-certificates`;
             const courseKey = `${storedName}-courses`;
 
-            // Fetch data
+            // Fetch data - ensure getData is called client-side
             const assignments = getData<Task>(assignmentKey);
             const projects = getData<Project>(projectKey);
             const collegeProjects = getData<CollegeProject>(collegeProjectKey);
@@ -58,7 +63,19 @@ export default function DashboardPage() {
             const courses = getData<Course>(courseKey);
 
             // Calculate stats
-             const upcomingAssignments = assignments.filter(a => !a.completed && new Date(a.dueDate) >= new Date()).length;
+             // Count only assignments that are not completed AND due date is today or in the future
+            const upcomingAssignments = assignments.filter(a => {
+                 if (a.completed) return false;
+                 try {
+                     const dueDate = new Date(a.dueDate);
+                     const today = new Date();
+                     today.setHours(0, 0, 0, 0); // Set today to the beginning of the day
+                     dueDate.setHours(0,0,0,0); // Set due date to the beginning of the day
+                     return dueDate >= today;
+                 } catch {
+                     return false; // Invalid date format
+                 }
+             }).length;
              const activeProjects = projects.filter(p => p.status === 'In Progress').length;
              const activeCollegeProjects = collegeProjects.filter(p => p.status === 'In Progress').length;
              const activePlacements = placements.filter(p => ['Applied', 'Interviewing'].includes(p.status)).length;
@@ -66,17 +83,18 @@ export default function DashboardPage() {
 
 
             const overviewStats: Stat[] = [
-              { title: "Upcoming Assignments", value: upcomingAssignments, icon: BookCheck, href: "/dashboard/assignments", description: "Due soon" },
+              { title: "Upcoming Assignments", value: upcomingAssignments, icon: BookCheck, href: "/dashboard/assignments", description: "Due soon or today" },
               { title: "Active Personal Projects", value: activeProjects, icon: FolderKanban, href: "/dashboard/projects", description: "In progress" },
               { title: "Active College Projects", value: activeCollegeProjects, icon: Briefcase, href: "/dashboard/college-projects", description: "In progress" },
-              { title: "Active Placements", value: activePlacements, icon: Briefcase /* TODO: Change Icon */, href: "/dashboard/placements", description: "Applications/Interviews" },
+              { title: "Active Placements", value: activePlacements, icon: CaseLower, href: "/dashboard/placements", description: "Applications/Interviews" },
               { title: "Total Certificates", value: certificates.length, icon: Award, href: "/dashboard/certificates", description: "Earned" },
               { title: "Courses In Progress", value: activeCourses, icon: GraduationCap, href: "/dashboard/courses", description: "Currently learning" },
             ];
 
             setStats(overviewStats);
         }
-    }, []); // Run only once on mount
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isClient]); // Rerun when isClient becomes true
 
   // Render skeleton or null during SSR and initial client render before mount
   if (!isClient) {
