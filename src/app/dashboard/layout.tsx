@@ -1,7 +1,8 @@
+
 "use client";
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation'; // Import usePathname
 import {
   SidebarProvider,
   Sidebar,
@@ -25,11 +26,13 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname(); // Use usePathname hook
   const [userName, setUserName] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
 
   React.useEffect(() => {
+    // Ensure this runs only on the client
     const storedName = localStorage.getItem('loggedInUserName');
     if (!storedName) {
       router.replace('/'); // Redirect to login if no name found
@@ -42,7 +45,8 @@ export default function DashboardLayout({
       setUserName(storedName);
       setIsLoading(false);
     }
-  }, [router, toast]);
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]); // Keep router dependency if replace is used
 
   const handleLogout = () => {
     localStorage.removeItem('loggedInUserName');
@@ -85,43 +89,50 @@ export default function DashboardLayout({
         <SidebarContent className="p-2">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard" tooltip="Dashboard" isActive={router.pathname === '/dashboard'}>
+               {/* Use pathname for isActive check */}
+              <SidebarMenuButton href="/dashboard" tooltip="Dashboard" isActive={pathname === '/dashboard'}>
                 <LayoutDashboard />
                 <span>Dashboard</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/assignments" tooltip="Assignments" isActive={router.pathname === '/dashboard/assignments'}>
+               {/* Use pathname for isActive check */}
+              <SidebarMenuButton href="/dashboard/assignments" tooltip="Assignments" isActive={pathname === '/dashboard/assignments'}>
                 <BookCheck />
                 <span>Assignments</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/projects" tooltip="Projects" isActive={router.pathname === '/dashboard/projects'}>
+              {/* Use pathname for isActive check */}
+              <SidebarMenuButton href="/dashboard/projects" tooltip="Projects" isActive={pathname === '/dashboard/projects'}>
                 <FolderKanban />
                 <span>Projects</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/college-projects" tooltip="College Projects" isActive={router.pathname === '/dashboard/college-projects'}>
+               {/* Use pathname for isActive check */}
+              <SidebarMenuButton href="/dashboard/college-projects" tooltip="College Projects" isActive={pathname === '/dashboard/college-projects'}>
                 <Briefcase /> {/* Using Briefcase as stand-in */}
                 <span>College Projects</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/placements" tooltip="Placements" isActive={router.pathname === '/dashboard/placements'}>
+               {/* Use pathname for isActive check */}
+              <SidebarMenuButton href="/dashboard/placements" tooltip="Placements" isActive={pathname === '/dashboard/placements'}>
                 <Briefcase />
                 <span>Placements</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/certificates" tooltip="Certificates" isActive={router.pathname === '/dashboard/certificates'}>
+               {/* Use pathname for isActive check */}
+              <SidebarMenuButton href="/dashboard/certificates" tooltip="Certificates" isActive={pathname === '/dashboard/certificates'}>
                 <Award />
                 <span>Certificates</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/courses" tooltip="Courses" isActive={router.pathname === '/dashboard/courses'}>
+               {/* Use pathname for isActive check */}
+              <SidebarMenuButton href="/dashboard/courses" tooltip="Courses" isActive={pathname === '/dashboard/courses'}>
                 <GraduationCap />
                 <span>Courses</span>
               </SidebarMenuButton>
