@@ -1,14 +1,15 @@
+
 "use client";
 
 import type { Task } from '@/types';
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react'; // Added useEffect
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Pencil, Trash2, Filter, Info } from 'lucide-react';
-import { format, isPast, differenceInDays } from 'date-fns';
+import { format, isPast, differenceInDays, isToday } from 'date-fns'; // Correctly import isToday
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +21,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 import { cn } from '@/lib/utils'; // Import cn for conditional classes
 
 // Add notes to Task if it might exist
@@ -36,14 +38,16 @@ interface AssignmentListProps {
 
 export function TaskList({ tasks, onToggleComplete, onDeleteTask, onEditTask }: AssignmentListProps) {
   const [filterTag, setFilterTag] = useState('');
-  const [mounted, setMounted] = useState(false);
+  const [isClient, setIsClient] = useState(false); // State to track client mount
 
   useEffect(() => {
-    setMounted(true); // Indicate component has mounted
+    setIsClient(true); // Indicate component has mounted
   }, []);
 
   const sortedTasks = useMemo(() => {
-    return [...tasks].sort((a, b) => {
+    // Ensure tasks is always an array, even if initially undefined or null from localStorage hydration
+    const validTasks = Array.isArray(tasks) ? tasks : [];
+    return [...validTasks].sort((a, b) => {
         if (a.completed !== b.completed) {
             return a.completed ? 1 : -1; // Incomplete first
         }
@@ -61,6 +65,7 @@ export function TaskList({ tasks, onToggleComplete, onDeleteTask, onEditTask }: 
     );
   }, [sortedTasks, filterTag]);
 
+  // Separate lists *after* filtering
   const upcomingTasks = filteredTasks.filter(task => !task.completed);
   const completedTasks = filteredTasks.filter(task => task.completed);
 
@@ -76,10 +81,10 @@ export function TaskList({ tasks, onToggleComplete, onDeleteTask, onEditTask }: 
       const diffDays = differenceInDays(date, today);
 
       if (diffDays === 0) {
-          return { text: 'Due Today', className: 'text-warning-foreground font-semibold' }; // Use warning color defined in globals.css
+          return { text: 'Due Today', className: 'text-orange-600 dark:text-orange-400 font-semibold' }; // Use a distinct color like orange
       }
       if (diffDays === 1) {
-          return { text: 'Due Tomorrow', className: 'text-orange-600 dark:text-orange-400' }; // Custom orange might need definition
+          return { text: 'Due Tomorrow', className: 'text-yellow-600 dark:text-yellow-400' }; // Use yellow/amber for tomorrow
       }
       if (diffDays <= 7) {
           return { text: `Due in ${diffDays} days`, className: 'text-primary' };
@@ -87,22 +92,27 @@ export function TaskList({ tasks, onToggleComplete, onDeleteTask, onEditTask }: 
       return { text: `Due ${format(date, 'PPP')}`, className: 'text-muted-foreground' };
   };
 
-   const isToday = (someDate: Date) => {
-      const today = new Date()
-      return someDate.getDate() == today.getDate() &&
-        someDate.getMonth() == today.getMonth() &&
-        someDate.getFullYear() == today.getFullYear()
-    }
 
-  if (!mounted) {
-     // Optional: Render skeleton loaders while waiting for mount
-     return <div className="space-y-6">
-         <Skeleton className="h-10 w-full mb-4" />
-         <Skeleton className="h-8 w-1/3 mb-4" />
-         <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-           {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-40 rounded-lg" />)}
+  // Don't render until client has mounted to avoid hydration mismatch
+  if (!isClient) {
+     return (
+         <div className="space-y-8">
+             <Skeleton className="h-11 w-full mb-4" /> {/* Filter Input Skeleton */}
+             <div>
+                 <Skeleton className="h-8 w-1/3 mb-4" /> {/* Upcoming Header Skeleton */}
+                 <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                    {[...Array(3)].map((_, i) => <Skeleton key={`upcoming-skel-${i}`} className="h-48 rounded-lg" />)} {/* Task Card Skeleton */}
+                 </div>
+             </div>
+             {/* Optionally add skeleton for completed section if it might exist */}
+             <div className="mt-12">
+                 <Skeleton className="h-8 w-1/3 mb-4" /> {/* Completed Header Skeleton */}
+                 <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                     {[...Array(2)].map((_, i) => <Skeleton key={`completed-skel-${i}`} className="h-40 rounded-lg opacity-70" />)} {/* Completed Task Card Skeleton */}
+                 </div>
+             </div>
          </div>
-       </div>;
+     );
   }
 
 
@@ -130,9 +140,9 @@ export function TaskList({ tasks, onToggleComplete, onDeleteTask, onEditTask }: 
                const dueDateStatus = getDueDateStatus(task.dueDate);
                return (
               <Card key={task.id} className="flex flex-col justify-between border border-border/50 shadow-sm transition-shadow duration-200 hover:shadow-lg hover:border-primary/30">
-                <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-2 pt-4 pr-4"> {/* Adjust padding */}
+                <CardHeader className="flex flex-row items-start gap-3 space-y-0 pb-2 pt-4 pr-4 pl-4"> {/* Adjusted gap and padding */}
                    {/* Custom Checkbox Styling */}
-                   <div className="flex items-center h-6 mt-0.5"> {/* Container for alignment */}
+                   <div className="flex items-center h-6 mt-1"> {/* Align checkbox with title */}
                      <Checkbox
                        id={`task-${task.id}`}
                        checked={task.completed}
@@ -150,17 +160,18 @@ export function TaskList({ tasks, onToggleComplete, onDeleteTask, onEditTask }: 
                     </CardDescription>
                   </div>
                 </CardHeader>
-                 <CardContent className="pt-2 pb-4 flex-grow space-y-3 pl-12 pr-4"> {/* Indent content */}
+                 <CardContent className="pt-2 pb-4 flex-grow space-y-3 pl-12 pr-4"> {/* Indent content relative to checkbox */}
                      {task.notes && (
                          <p className="text-sm text-muted-foreground line-clamp-3">{task.notes}</p>
                      )}
-                   <div className="flex flex-wrap gap-1">
+                   <div className="flex flex-wrap gap-1.5"> {/* Adjusted gap */}
                     {task.tags.map(tag => (
                       <Badge key={tag} variant="secondary" className="font-normal">{tag}</Badge>
                     ))}
                   </div>
                 </CardContent>
-                <div className="flex justify-end gap-1 p-3 pt-0 border-t bg-secondary/20 mt-auto"> {/* Use mt-auto */}
+                {/* Footer aligned to bottom */}
+                <div className="flex justify-end gap-1 p-3 pt-0 border-t bg-secondary/20 mt-auto">
                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary" onClick={() => onEditTask(task)} aria-label={`Edit assignment "${task.description}"`}>
                     <Pencil className="h-4 w-4 mr-1" /> Edit
                   </Button>
@@ -194,7 +205,7 @@ export function TaskList({ tasks, onToggleComplete, onDeleteTask, onEditTask }: 
             })}
           </div>
         ) : (
-          <div className="text-center py-8 px-4 border border-dashed rounded-lg">
+          <div className="text-center py-8 px-4 border border-dashed rounded-lg bg-card/50">
              <Info className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
              <p className="text-muted-foreground italic">
                 {filterTag
@@ -206,15 +217,15 @@ export function TaskList({ tasks, onToggleComplete, onDeleteTask, onEditTask }: 
         )}
       </div>
 
-      {/* Completed Assignments */}
+      {/* Completed Assignments - Conditionally render the entire section */}
       {completedTasks.length > 0 && (
         <div className="mt-12"> {/* Increased margin top */}
           <h2 className="text-2xl font-semibold mb-4 text-success border-b pb-2">Completed</h2>
            <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {completedTasks.map(task => (
-              <Card key={task.id} className="border border-border/40 bg-card/80 shadow-sm opacity-80 hover:opacity-100 transition-opacity duration-200">
-                <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-2 pt-4 pr-4">
-                   <div className="flex items-center h-6 mt-0.5">
+              <Card key={task.id} className="flex flex-col justify-between border border-border/40 bg-card/80 shadow-sm opacity-80 hover:opacity-100 transition-opacity duration-200">
+                <CardHeader className="flex flex-row items-start gap-3 space-y-0 pb-2 pt-4 pr-4 pl-4"> {/* Adjusted gap and padding */}
+                   <div className="flex items-center h-6 mt-1"> {/* Align checkbox */}
                      <Checkbox
                        id={`task-${task.id}`}
                        checked={task.completed}
@@ -232,17 +243,17 @@ export function TaskList({ tasks, onToggleComplete, onDeleteTask, onEditTask }: 
                     </CardDescription>
                   </div>
                 </CardHeader>
-                 <CardContent className="pt-2 pb-4 space-y-3 pl-12 pr-4">
+                 <CardContent className="pt-2 pb-4 flex-grow space-y-3 pl-12 pr-4"> {/* Indent content */}
                     {task.notes && (
                          <p className="text-sm text-muted-foreground line-clamp-2 italic">{task.notes}</p>
                      )}
-                   <div className="flex flex-wrap gap-1">
+                   <div className="flex flex-wrap gap-1.5"> {/* Adjusted gap */}
                      {task.tags.map(tag => (
                       <Badge key={tag} variant="secondary" className="font-normal">{tag}</Badge>
                     ))}
                    </div>
                  </CardContent>
-                 <div className="flex justify-end gap-1 p-3 pt-0 border-t bg-secondary/10 mt-auto">
+                 <div className="flex justify-end gap-1 p-3 pt-0 border-t bg-secondary/10 mt-auto"> {/* Footer aligned to bottom */}
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" aria-label={`Delete completed assignment "${task.description}"`}>
@@ -272,6 +283,10 @@ export function TaskList({ tasks, onToggleComplete, onDeleteTask, onEditTask }: 
             ))}
           </div>
         </div>
+      )}
+      {/* Message if filtered and no completed tasks */}
+      {filterTag && completedTasks.length === 0 && upcomingTasks.length > 0 && (
+          <p className="text-muted-foreground italic text-center mt-4">No completed assignments match your filter.</p>
       )}
     </div>
   );

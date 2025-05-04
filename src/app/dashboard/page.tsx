@@ -1,16 +1,12 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { LayoutDashboard, BookCheck, Briefcase, FolderKanban, Award, GraduationCap, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-import type { Task } from '@/types'; // For assignment count
-import type { Project, CollegeProject } from '@/types'; // For project counts
-import type { PlacementActivity } from '@/types'; // For placement count
-import type { Certificate } from '@/types'; // For certificate count
-import type { Course } from '@/types'; // For course count
+import type { Task, Project, CollegeProject, PlacementActivity, Certificate, Course } from '@/types'; // Consolidate type imports
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
-
 
 interface Stat {
   title: string;
@@ -23,11 +19,11 @@ interface Stat {
 export default function DashboardPage() {
     const [userName, setUserName] = useState<string | null>(null);
     const [stats, setStats] = useState<Stat[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isClient, setIsClient] = useState(false); // State to track client mount
 
      // Function to safely get data from localStorage
     const getData = <T,>(key: string): T[] => {
-        if (typeof window === 'undefined') return []; // Avoid server-side access
+        // Check window existence is redundant now due to isClient state
         try {
             const item = localStorage.getItem(key);
             return item ? JSON.parse(item) : [];
@@ -39,6 +35,7 @@ export default function DashboardPage() {
 
 
     useEffect(() => {
+        setIsClient(true); // Component has mounted
         // Fetch username and data from local storage on client-side
         const storedName = localStorage.getItem('loggedInUserName');
         if (storedName) {
@@ -72,83 +69,72 @@ export default function DashboardPage() {
               { title: "Upcoming Assignments", value: upcomingAssignments, icon: BookCheck, href: "/dashboard/assignments", description: "Due soon" },
               { title: "Active Personal Projects", value: activeProjects, icon: FolderKanban, href: "/dashboard/projects", description: "In progress" },
               { title: "Active College Projects", value: activeCollegeProjects, icon: Briefcase, href: "/dashboard/college-projects", description: "In progress" },
-              { title: "Active Placements", value: activePlacements, icon: Briefcase /* Change Icon */, href: "/dashboard/placements", description: "Applications/Interviews" },
+              { title: "Active Placements", value: activePlacements, icon: Briefcase /* TODO: Change Icon */, href: "/dashboard/placements", description: "Applications/Interviews" },
               { title: "Total Certificates", value: certificates.length, icon: Award, href: "/dashboard/certificates", description: "Earned" },
               { title: "Courses In Progress", value: activeCourses, icon: GraduationCap, href: "/dashboard/courses", description: "Currently learning" },
             ];
 
             setStats(overviewStats);
         }
-         setIsLoading(false); // Data loading finished
     }, []); // Run only once on mount
+
+  // Render skeleton or null during SSR and initial client render before mount
+  if (!isClient) {
+     return (
+         <div className="space-y-8">
+             <Skeleton className="h-10 w-1/2 rounded-lg mb-2" />
+             <Skeleton className="h-5 w-3/4 rounded" />
+             <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
+                 {[...Array(6)].map((_, i) => (
+                    <Card key={i} className="shadow-sm border border-border/30">
+                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                             <Skeleton className="h-5 w-2/3 rounded" />
+                             <Skeleton className="h-6 w-6 rounded-sm" />
+                         </CardHeader>
+                        <CardContent>
+                            <Skeleton className="h-8 w-1/4 mb-2 rounded" />
+                            <Skeleton className="h-4 w-1/2 rounded" />
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+         </div>
+     );
+  }
 
 
   return (
     <div className="space-y-8">
-      {isLoading ? (
-        <>
-          <Skeleton className="h-10 w-1/2 rounded-lg" />
-          <Skeleton className="h-5 w-3/4 rounded" />
-        </>
-      ) : (
          <>
              <h1 className="text-3xl font-bold text-primary tracking-tight">
                 Welcome back, {userName ? userName : 'Student'}!
              </h1>
               <p className="text-lg text-muted-foreground">Here's a quick overview of your academic activities.</p>
          </>
-      )}
 
 
       <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {isLoading ? (
-            [...Array(6)].map((_, i) => (
-                <Card key={i} className="shadow-sm border border-border/30">
-                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                         <Skeleton className="h-5 w-2/3 rounded" />
-                         <Skeleton className="h-6 w-6 rounded-sm" />
-                     </CardHeader>
-                    <CardContent>
-                        <Skeleton className="h-8 w-1/4 mb-2 rounded" />
-                        <Skeleton className="h-4 w-1/2 rounded" />
-                    </CardContent>
-                </Card>
-            ))
-        ) : (
-            stats.map((stat) => (
+            {stats.map((stat) => (
               <Link href={stat.href} key={stat.title} passHref>
-                 <Card className="shadow-sm border border-border/30 hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer group">
+                 <Card className="shadow-sm border border-border/30 hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer group flex flex-col h-full"> {/* Added flex classes */}
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-base font-medium text-muted-foreground group-hover:text-primary transition-colors">{stat.title}</CardTitle>
                       <stat.icon className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="flex-grow"> {/* Added flex-grow */}
                       <div className="text-3xl font-bold text-foreground mb-1">{stat.value}</div>
                       <p className="text-xs text-muted-foreground">{stat.description}</p>
                     </CardContent>
-                    {/* Optional: Add a footer link */}
-                    {/* <CardFooter className="pt-4 border-t mt-4 group-hover:bg-accent/50 transition-colors">
-                       <p className="text-xs text-primary flex items-center gap-1">
-                          View Details <ArrowRight className="h-3 w-3" />
-                       </p>
-                    </CardFooter> */}
+                    {/* Footer with arrow (optional, adds visual cue) */}
+                    <div className="p-4 pt-2 mt-auto text-right">
+                       <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    </div>
                  </Card>
               </Link>
-            ))
-        )}
+            ))}
       </div>
 
       {/* Optional: Add more dashboard widgets here, e.g., recent activity, upcoming deadlines */}
-      {/* Example Placeholder */}
-       {/* <Card className="mt-8 shadow-sm border border-border/30">
-         <CardHeader>
-           <CardTitle>Recent Activity</CardTitle>
-           <CardDescription>Latest updates across your dashboard.</CardDescription>
-         </CardHeader>
-         <CardContent>
-           <p className="text-muted-foreground italic">No recent activity to display.</p>
-         </CardContent>
-       </Card> */}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import type { Task } from '@/types';
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
+import { Button } from '@/components/ui/button'; // Import Button
 
 export default function AssignmentsPage() {
   const [userName, setUserName] = useState<string | null>(null);
@@ -17,12 +18,12 @@ export default function AssignmentsPage() {
   const [tasks, setTasks] = useLocalStorage<Task[]>(storageKey, []);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isFormVisible, setIsFormVisible] = useState(false); // Control form visibility
-  const [mounted, setMounted] = useState(false);
+  const [isClient, setIsClient] = useState(false); // State to track client mount
   const { toast } = useToast();
 
   useEffect(() => {
     // Ensure this runs only on the client
-    setMounted(true);
+    setIsClient(true);
     const storedName = localStorage.getItem('loggedInUserName');
     setUserName(storedName);
   }, []);
@@ -119,6 +120,24 @@ export default function AssignmentsPage() {
     setIsFormVisible(true);
   }
 
+  // Render skeleton or null during SSR and initial client render before mount
+  if (!isClient) {
+     return (
+         <div className="space-y-8">
+             <header className="border-b pb-4 mb-6">
+                <Skeleton className="h-9 w-1/3 mb-1" />
+                <Skeleton className="h-6 w-2/3" />
+             </header>
+             <div className="space-y-6">
+                 <Skeleton className="h-10 w-full mb-4" />
+                 <Skeleton className="h-8 w-1/3 mb-4" />
+                 <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                    {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-40 rounded-lg" />)}
+                 </div>
+             </div>
+         </div>
+     );
+  }
 
   return (
     <div className="space-y-8">
@@ -127,8 +146,8 @@ export default function AssignmentsPage() {
         <p className="text-lg text-muted-foreground">Track your upcoming and completed assignments.</p>
       </header>
 
-      {/* Show Form or Add Button */}
-      {mounted && userName ? (
+      {/* Show Form or Add Button - Render only after client mount and user is identified */}
+      {userName ? (
           isFormVisible ? (
                <TaskForm
                   onAddTask={handleAddTask}
@@ -141,11 +160,11 @@ export default function AssignmentsPage() {
                  <Button onClick={handleShowAddForm}>Add New Assignment</Button>
               </div>
           )
-      ) : null } {/* Don't show button or form until mounted */}
+      ) : null }
 
 
-      {/* Task List - Show skeleton while loading */}
-      {mounted && userName ? (
+      {/* Task List - Render only after client mount and user is identified */}
+      {userName ? (
           <TaskList
             tasks={tasks}
             onToggleComplete={handleToggleComplete}
@@ -153,17 +172,12 @@ export default function AssignmentsPage() {
             onEditTask={handleSetEditTask} // Pass the handler to show form for edit
           />
       ) : (
-          // Skeleton Loader for TaskList
-          <div className="space-y-6">
-            <Skeleton className="h-10 w-full mb-4" />
-            <Skeleton className="h-8 w-1/3 mb-4" />
-            <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-40 rounded-lg" />)}
-            </div>
-         </div>
+          // You might want a different message if the user isn't logged in yet
+           <div className="text-center text-muted-foreground italic py-10">
+               Loading assignments...
+           </div>
       )}
        {/* <Toaster /> Already in root layout */}
     </div>
   );
 }
-

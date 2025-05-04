@@ -1,12 +1,13 @@
+
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react'; // Added useMemo
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Pencil, Trash2, Link as LinkIcon, BookOpen, Star } from 'lucide-react';
+import { Plus, Pencil, Trash2, Link as LinkIcon, BookOpen, Star, Info } from 'lucide-react'; // Added Info
 import {
     AlertDialog,
     AlertDialogAction,
@@ -22,26 +23,18 @@ import { Badge } from "@/components/ui/badge";
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
-
-interface Course {
-  id: string;
-  title: string;
-  platform: string; // e.g., Coursera, Udemy, University
-  status: 'Not Started' | 'In Progress' | 'Completed';
-  completionDate?: string; // ISO String
-  link?: string; // Link to course page
-  certificateUrl?: string; // Link to certificate if separate
-  rating?: number; // 1-5 star rating
-  notes?: string;
-}
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select
+import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
+import type { Course } from '@/types'; // Import specific type
+import { cn } from '@/lib/utils'; // Import cn
 
 export default function CoursesPage() {
   const [userName, setUserName] = useState<string | null>(null);
-  const storageKey = userName ? `${userName}-courses` : 'courses';
+  const storageKey = userName ? `${userName}-courses` : 'courses-fallback'; // Fallback key
   const [courses, setCourses] = useLocalStorage<Course[]>(storageKey, []);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [isClient, setIsClient] = useState(false); // State to track client mount
   const { toast } = useToast();
 
   // Form state
@@ -55,7 +48,7 @@ export default function CoursesPage() {
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
-    setMounted(true);
+    setIsClient(true); // Component has mounted
     const storedName = localStorage.getItem('loggedInUserName');
     setUserName(storedName);
   }, []);
@@ -72,9 +65,11 @@ export default function CoursesPage() {
       setNotes(editingCourse.notes || '');
       setIsFormOpen(true);
     } else {
-      resetForm();
+      // Only reset if not currently editing
+      if (!isFormOpen) resetForm();
     }
-  }, [editingCourse]);
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingCourse, isFormOpen]);
 
    const resetForm = () => {
      setTitle('');
@@ -85,7 +80,7 @@ export default function CoursesPage() {
      setCertificateUrl('');
      setRating(undefined);
      setNotes('');
-     setEditingCourse(null);
+     setEditingCourse(null); // Explicitly clear editing state
    };
 
    const handleFormSubmit = (e: React.FormEvent) => {
@@ -140,6 +135,7 @@ export default function CoursesPage() {
 
    const handleEditClick = (course: Course) => {
        setEditingCourse(course);
+       // Form opens via useEffect
    };
 
    const handleCancelEdit = () => {
@@ -156,13 +152,33 @@ export default function CoursesPage() {
         }
     }
 
-   // Sort courses (e.g., by status then title)
-   const sortedCourses = [...courses].sort((a, b) => {
-      const statusOrder = { 'In Progress': 1, 'Not Started': 2, 'Completed': 3 };
-      const statusCompare = (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
-      if (statusCompare !== 0) return statusCompare;
-      return a.title.localeCompare(b.title);
-   });
+   // Sort courses using useMemo
+   const sortedCourses = useMemo(() => {
+       return [...courses].sort((a, b) => {
+         const statusOrder = { 'In Progress': 1, 'Not Started': 2, 'Completed': 3 };
+         const statusCompare = (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
+         if (statusCompare !== 0) return statusCompare;
+         return a.title.localeCompare(b.title);
+       });
+   }, [courses]);
+
+   // Render skeleton or null during SSR and initial client render before mount
+   if (!isClient) {
+     return (
+       <div className="space-y-8">
+         <header className="flex justify-between items-center">
+           <div>
+             <Skeleton className="h-9 w-36 mb-2" />
+             <Skeleton className="h-6 w-72" />
+           </div>
+           <Skeleton className="h-10 w-36 rounded-md" />
+         </header>
+         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+           {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-60 rounded-lg" />)}
+         </div>
+       </div>
+     );
+   }
 
 
   return (
@@ -172,69 +188,71 @@ export default function CoursesPage() {
           <h1 className="text-3xl font-bold text-primary mb-2">Courses</h1>
           <p className="text-lg text-muted-foreground">Track your online and university courses.</p>
         </div>
-        <Button onClick={() => { setEditingCourse(null); setIsFormOpen(true); }}>
-          <Plus className="mr-2 h-4 w-4" /> Add Course
-        </Button>
+        {userName && ( // Only show button if user is identified
+           <Button onClick={() => { setEditingCourse(null); resetForm(); setIsFormOpen(true); }}>
+              <Plus className="mr-2 h-4 w-4" /> Add Course
+           </Button>
+        )}
       </header>
 
        {isFormOpen && (
-         <Card>
+         <Card className="border border-border/50 shadow-sm">
            <CardHeader>
-             <CardTitle>{editingCourse ? 'Edit Course' : 'Add New Course'}</CardTitle>
+             <CardTitle className="text-xl text-primary">{editingCourse ? 'Edit Course' : 'Add New Course'}</CardTitle>
            </CardHeader>
            <form onSubmit={handleFormSubmit}>
              <CardContent className="space-y-4">
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div>
                          <Label htmlFor="course-title">Course Title</Label>
-                         <Input id="course-title" value={title} onChange={e => setTitle(e.target.value)} required />
+                         <Input id="course-title" value={title} onChange={e => setTitle(e.target.value)} required className="h-10 mt-1"/>
                      </div>
                      <div>
                          <Label htmlFor="course-platform">Platform/Institution</Label>
-                         <Input id="course-platform" value={platform} onChange={e => setPlatform(e.target.value)} required placeholder="e.g., Coursera, University Name" />
+                         <Input id="course-platform" value={platform} onChange={e => setPlatform(e.target.value)} required placeholder="e.g., Coursera, University Name" className="h-10 mt-1"/>
                      </div>
                  </div>
                 <div>
                     <Label htmlFor="course-status">Status</Label>
-                     <select
-                         id="course-status"
-                         value={status}
-                         onChange={e => setStatus(e.target.value as Course['status'])}
-                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                     >
-                         <option value="Not Started">Not Started</option>
-                         <option value="In Progress">In Progress</option>
-                         <option value="Completed">Completed</option>
-                     </select>
+                     <Select value={status} onValueChange={(value) => setStatus(value as Course['status'])}>
+                         <SelectTrigger className="w-full h-10 mt-1">
+                             <SelectValue placeholder="Select status" />
+                         </SelectTrigger>
+                         <SelectContent>
+                             <SelectItem value="Not Started">Not Started</SelectItem>
+                             <SelectItem value="In Progress">In Progress</SelectItem>
+                             <SelectItem value="Completed">Completed</SelectItem>
+                         </SelectContent>
+                     </Select>
                  </div>
                  {status === 'Completed' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                              <Label htmlFor="course-compDate">Completion Date</Label>
-                             <Input id="course-compDate" type="date" value={completionDate} onChange={e => setCompletionDate(e.target.value)} required={status === 'Completed'} />
+                             <Input id="course-compDate" type="date" value={completionDate} onChange={e => setCompletionDate(e.target.value)} required={status === 'Completed'} className="h-10 mt-1"/>
                         </div>
                          <div>
                              <Label htmlFor="course-rating">Your Rating (1-5, Optional)</Label>
-                             <Input id="course-rating" type="number" min="1" max="5" value={rating ?? ''} onChange={e => handleRatingChange(e.target.value)} />
+                             <Input id="course-rating" type="number" min="1" max="5" value={rating ?? ''} onChange={e => handleRatingChange(e.target.value)} className="h-10 mt-1"/>
                          </div>
                     </div>
                  )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div>
                          <Label htmlFor="course-link">Course Link (Optional)</Label>
-                         <Input id="course-link" type="url" value={link} onChange={e => setLink(e.target.value)} placeholder="https://..." />
+                         <Input id="course-link" type="url" value={link} onChange={e => setLink(e.target.value)} placeholder="https://..." className="h-10 mt-1"/>
                      </div>
                       <div>
                          <Label htmlFor="course-certUrl">Certificate Link (Optional)</Label>
-                         <Input id="course-certUrl" type="url" value={certificateUrl} onChange={e => setCertificateUrl(e.target.value)} placeholder="https://verify..." />
+                         <Input id="course-certUrl" type="url" value={certificateUrl} onChange={e => setCertificateUrl(e.target.value)} placeholder="https://verify..." className="h-10 mt-1"/>
                      </div>
                  </div>
                  <div>
                      <Label htmlFor="course-notes">Notes (Optional)</Label>
-                     <Textarea id="course-notes" value={notes} onChange={e => setNotes(e.target.value)} />
+                     <Textarea id="course-notes" value={notes} onChange={e => setNotes(e.target.value)} className="mt-1 min-h-[60px]"/>
                  </div>
              </CardContent>
-             <CardFooter className="flex justify-end space-x-2">
+             <CardFooter className="flex justify-end space-x-2 bg-secondary/20 p-4 border-t">
                <Button type="button" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
                <Button type="submit">{editingCourse ? 'Save Changes' : 'Add Course'}</Button>
              </CardFooter>
@@ -242,56 +260,63 @@ export default function CoursesPage() {
          </Card>
        )}
 
-       {mounted && userName && (
+       {userName ? ( // Only render list if user is identified
          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {sortedCourses.length > 0 ? sortedCourses.map(course => (
-                 <Card key={course.id} className="flex flex-col">
-                     <CardHeader>
+                 <Card key={course.id} className="flex flex-col border border-border/50 shadow-sm transition-shadow duration-200 hover:shadow-lg hover:border-primary/30">
+                     <CardHeader className="pb-3"> {/* Reduced padding */}
                           <div className="flex justify-between items-start gap-2">
                              <div>
-                                 <CardTitle>{course.title}</CardTitle>
+                                 <CardTitle className="text-lg">{course.title}</CardTitle>
                                  <CardDescription>{course.platform}</CardDescription>
                              </div>
                               <Badge
                                 variant={course.status === 'Completed' ? 'default' : course.status === 'In Progress' ? 'secondary' : 'outline'}
-                                className={cn(course.status === 'Completed' && 'bg-success text-success-foreground')}
+                                className={cn(
+                                    'capitalize', // Capitalize status
+                                    course.status === 'Completed' && 'bg-success text-success-foreground',
+                                    course.status === 'In Progress' && 'bg-secondary text-secondary-foreground',
+                                    course.status === 'Not Started' && 'border-primary text-primary'
+                                )}
                                 >
                                  {course.status}
                              </Badge>
                          </div>
-                         {course.completionDate && (
-                            <p className="text-xs text-muted-foreground pt-1">Completed: {new Date(course.completionDate).toLocaleDateString()}</p>
-                         )}
-                         {course.rating && (
-                             <div className="flex items-center pt-1">
-                                 {[...Array(5)].map((_, i) => (
-                                     <Star key={i} className={`h-4 w-4 ${i < (course.rating || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground'}`} />
-                                 ))}
-                             </div>
-                         )}
+                          <div className="pt-2 space-y-1"> {/* Group details */}
+                             {course.completionDate && (
+                                <p className="text-xs text-muted-foreground">Completed: {new Date(course.completionDate).toLocaleDateString()}</p>
+                             )}
+                             {course.rating && (
+                                 <div className="flex items-center">
+                                     {[...Array(5)].map((_, i) => (
+                                         <Star key={i} className={`h-4 w-4 ${i < (course.rating || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/50'}`} />
+                                     ))}
+                                 </div>
+                             )}
+                          </div>
                      </CardHeader>
-                     <CardContent className="flex-grow space-y-2">
+                     <CardContent className="flex-grow space-y-3 pt-0 pb-4 pl-6 pr-4"> {/* Adjusted padding */}
                          {course.notes && <p className="text-sm text-muted-foreground line-clamp-3">{course.notes}</p>}
-                         <div className="flex flex-col space-y-1">
+                         <div className="flex flex-col space-y-1.5 pt-1"> {/* Link section */}
                              {course.link && (
-                                 <Link href={course.link} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
-                                     <BookOpen className="h-3 w-3" /> Course Page
+                                 <Link href={course.link} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1.5">
+                                     <BookOpen className="h-3.5 w-3.5" /> Course Page
                                  </Link>
                              )}
                              {course.certificateUrl && (
-                                 <Link href={course.certificateUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
-                                     <LinkIcon className="h-3 w-3" /> View Certificate
+                                 <Link href={course.certificateUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1.5">
+                                     <LinkIcon className="h-3.5 w-3.5" /> View Certificate
                                  </Link>
                              )}
                          </div>
                      </CardContent>
-                     <CardFooter className="flex justify-end gap-2">
-                         <Button variant="ghost" size="icon" onClick={() => handleEditClick(course)}>
+                     <CardFooter className="flex justify-end gap-2 p-3 pt-0 border-t bg-secondary/20">
+                         <Button variant="ghost" size="icon" onClick={() => handleEditClick(course)} aria-label={`Edit course "${course.title}"`}>
                              <Pencil className="h-4 w-4" />
                          </Button>
                          <AlertDialog>
                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90 hover:bg-destructive/10">
+                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90 hover:bg-destructive/10" aria-label={`Delete course "${course.title}"`}>
                                  <Trash2 className="h-4 w-4" />
                               </Button>
                            </AlertDialogTrigger>
@@ -299,7 +324,7 @@ export default function CoursesPage() {
                               <AlertDialogHeader>
                                   <AlertDialogTitle>Delete Course?</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                      This will permanently delete the course "{course.title}".
+                                      This will permanently delete the course "{course.title}". This action cannot be undone.
                                   </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -311,18 +336,18 @@ export default function CoursesPage() {
                      </CardFooter>
                  </Card>
              )) : (
-                 <p className="text-muted-foreground italic md:col-span-2 lg:col-span-3 text-center">No courses added yet.</p>
+                  <div className="col-span-full text-center py-10 px-4 border border-dashed rounded-lg">
+                     <Info className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+                     <p className="text-muted-foreground italic">No courses added yet. Click "Add Course" to get started.</p>
+                 </div>
              )}
          </div>
+       ) : (
+           // Optional: Message if user isn't loaded yet
+           <div className="text-center text-muted-foreground italic py-10">
+               Loading courses...
+           </div>
        )}
     </div>
   );
-}
-
-// Helper cn function
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
 }
