@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, BookCheck, Briefcase, FolderKanban, Award, GraduationCap, LogOut, BookOpenCheck, User, CaseLower } from 'lucide-react';
+import { LayoutDashboard, BookCheck, Briefcase, FolderKanban, Award, GraduationCap, LogOut, BookOpenCheck, User, CaseLower, AlertTriangle, CalendarDays } from 'lucide-react'; // Added AlertTriangle, CalendarDays
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 
@@ -72,6 +72,8 @@ export default function DashboardLayout({
   // Define menu items
   const menuItems = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", tooltip: "Dashboard" },
+    { href: "/dashboard/important", icon: AlertTriangle, label: "Important", tooltip: "Important Items" }, // Added Important
+    { href: "/dashboard/events", icon: CalendarDays, label: "Events", tooltip: "Upcoming Events" }, // Added Events
     { href: "/dashboard/assignments", icon: BookCheck, label: "Assignments", tooltip: "Assignments" },
     { href: "/dashboard/projects", icon: FolderKanban, label: "Personal Projects", tooltip: "Personal Projects" },
     { href: "/dashboard/college-projects", icon: Briefcase, label: "College Projects", tooltip: "College Projects" },
@@ -86,7 +88,7 @@ export default function DashboardLayout({
         <SidebarHeader className="p-3 border-b border-sidebar-border">
             {isLoading ? (
               <div className="flex items-center gap-3">
-                <Skeleton className="size-10 rounded-full" />
+                <Skeleton className="h-10 w-10 rounded-full" />
                 <div className="flex flex-col space-y-1">
                     <Skeleton className="h-4 w-24" />
                     <Skeleton className="h-3 w-16" />

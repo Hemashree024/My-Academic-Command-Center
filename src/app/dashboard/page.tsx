@@ -3,10 +3,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { LayoutDashboard, BookCheck, Briefcase, FolderKanban, Award, GraduationCap, ArrowRight, CaseLower } from 'lucide-react'; // Added CaseLower
+import { LayoutDashboard, BookCheck, Briefcase, FolderKanban, Award, GraduationCap, ArrowRight, CaseLower, AlertTriangle, CalendarDays } from 'lucide-react'; // Added CaseLower, AlertTriangle, CalendarDays
 import Link from 'next/link';
-import type { Task, Project, CollegeProject, PlacementActivity, Certificate, Course } from '@/types'; // Consolidate type imports
+import type { Task, Project, CollegeProject, PlacementActivity, Certificate, Course, ImportantItem, EventItem } from '@/types'; // Consolidate type imports
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
+import { isToday, isPast } from 'date-fns'; // Import date-fns functions
 
 interface Stat {
   title: string;
@@ -53,6 +54,8 @@ export default function DashboardPage() {
             const placementKey = `${storedName}-placements`;
             const certificateKey = `${storedName}-certificates`;
             const courseKey = `${storedName}-courses`;
+            const importantKey = `${storedName}-important`; // Key for important items
+            const eventKey = `${storedName}-events`; // Key for events
 
             // Fetch data - ensure getData is called client-side
             const assignments = getData<Task>(assignmentKey);
@@ -61,6 +64,8 @@ export default function DashboardPage() {
             const placements = getData<PlacementActivity>(placementKey);
             const certificates = getData<Certificate>(certificateKey);
             const courses = getData<Course>(courseKey);
+            const importantItems = getData<ImportantItem>(importantKey); // Fetch important items
+            const events = getData<EventItem>(eventKey); // Fetch events
 
             // Calculate stats
              // Count only assignments that are not completed AND due date is today or in the future
@@ -80,10 +85,21 @@ export default function DashboardPage() {
              const activeCollegeProjects = collegeProjects.filter(p => p.status === 'In Progress').length;
              const activePlacements = placements.filter(p => ['Applied', 'Interviewing'].includes(p.status)).length;
              const activeCourses = courses.filter(c => c.status === 'In Progress').length;
+             const highPriorityImportant = importantItems.filter(i => i.priority === 'High').length; // Count high priority items
+             const upcomingEvents = events.filter(event => {
+                 try {
+                    const startDate = new Date(event.startDate);
+                    return !isPast(startDate) || isToday(startDate);
+                 } catch {
+                    return false;
+                 }
+             }).length; // Count upcoming/today's events
 
 
             const overviewStats: Stat[] = [
               { title: "Upcoming Assignments", value: upcomingAssignments, icon: BookCheck, href: "/dashboard/assignments", description: "Due soon or today" },
+              { title: "High Priority Items", value: highPriorityImportant, icon: AlertTriangle, href: "/dashboard/important", description: "Marked as high" }, // Important count
+              { title: "Upcoming Events", value: upcomingEvents, icon: CalendarDays, href: "/dashboard/events", description: "Today or future" }, // Events count
               { title: "Active Personal Projects", value: activeProjects, icon: FolderKanban, href: "/dashboard/projects", description: "In progress" },
               { title: "Active College Projects", value: activeCollegeProjects, icon: Briefcase, href: "/dashboard/college-projects", description: "In progress" },
               { title: "Active Placements", value: activePlacements, icon: CaseLower, href: "/dashboard/placements", description: "Applications/Interviews" },
@@ -102,8 +118,8 @@ export default function DashboardPage() {
          <div className="space-y-8">
              <Skeleton className="h-10 w-1/2 rounded-lg mb-2" />
              <Skeleton className="h-5 w-3/4 rounded" />
-             <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
-                 {[...Array(6)].map((_, i) => (
+             <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4 mt-6"> {/* Adjusted grid cols */}
+                 {[...Array(8)].map((_, i) => ( // Updated skeleton count
                     <Card key={i} className="shadow-sm border border-border/30">
                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                              <Skeleton className="h-5 w-2/3 rounded" />
@@ -131,7 +147,7 @@ export default function DashboardPage() {
          </>
 
 
-      <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4"> {/* Adjusted grid cols */}
             {stats.map((stat) => (
               <Link href={stat.href} key={stat.title} passHref>
                  <Card className="shadow-sm border border-border/30 hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer group flex flex-col h-full"> {/* Added flex classes */}

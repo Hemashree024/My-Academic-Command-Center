@@ -1,3 +1,4 @@
+
 export interface Task {
   id: string;
   description: string;
@@ -57,4 +58,23 @@ export interface Course {
   certificateUrl?: string; // Link to certificate if separate
   rating?: number; // 1-5 star rating
   notes?: string;
+}
+
+export interface ImportantItem {
+    id: string;
+    title: string;
+    description?: string;
+    dueDate?: string; // ISO String (Optional deadline)
+    tags?: string[];
+    priority: 'Low' | 'Medium' | 'High';
+}
+
+export interface EventItem {
+    id: string;
+    title: string;
+    description?: string;
+    startDate: string; // ISO String
+    endDate?: string; // ISO String (Optional)
+    location?: string;
+    link?: string; // Link to event page/details
 }
