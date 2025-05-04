@@ -13,6 +13,7 @@ export interface Task {
 export interface Project extends Task {
   details?: string;
   status?: 'Planning' | 'In Progress' | 'Completed' | 'On Hold';
+  tags: string[]; // Ensure tags is always an array
 }
 
 export interface CollegeProject extends Task {
@@ -20,6 +21,7 @@ export interface CollegeProject extends Task {
   teamMembers?: string[];
   details?: string;
   status?: 'Planning' | 'In Progress' | 'Completed' | 'Submitted' | 'Graded';
+  tags: string[]; // Ensure tags is always an array
 }
 
 export interface PlacementActivity {
