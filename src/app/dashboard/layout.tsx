@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from 'react';
-import { useRouter, usePathname } from 'next/navigation'; // Import usePathname
+import { useRouter, usePathname } from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -14,11 +14,13 @@ import {
   SidebarMenuButton,
   SidebarFooter,
   SidebarInset,
+  SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, BookCheck, Briefcase, FolderKanban, Award, GraduationCap, LogOut } from 'lucide-react';
+import { LayoutDashboard, BookCheck, Briefcase, FolderKanban, Award, GraduationCap, LogOut, BookOpenCheck, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 
 export default function DashboardLayout({
   children,
@@ -26,16 +28,15 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const pathname = usePathname(); // Use usePathname hook
+  const pathname = usePathname();
   const [userName, setUserName] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
 
   React.useEffect(() => {
-    // Ensure this runs only on the client
     const storedName = localStorage.getItem('loggedInUserName');
     if (!storedName) {
-      router.replace('/'); // Redirect to login if no name found
+      router.replace('/');
       toast({
         title: "Authentication Required",
         description: "Please log in to access the dashboard.",
@@ -46,7 +47,7 @@ export default function DashboardLayout({
       setIsLoading(false);
     }
      // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router]); // Keep router dependency if replace is used
+  }, [router]); // Use router in dependency if it's used inside effect
 
   const handleLogout = () => {
     localStorage.removeItem('loggedInUserName');
@@ -57,105 +58,107 @@ export default function DashboardLayout({
     router.push('/');
   };
 
-  if (isLoading) {
-    // Optional: Show a loading indicator while checking auth state
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  }
-
-  const getInitials = (name: string | null) => {
-    if (!name) return 'U';
+   const getInitials = (name: string | null) => {
+    if (!name) return <User className="h-5 w-5" />;
     return name
       .split(' ')
       .map((n) => n[0])
+      .filter((_, i, arr) => i === 0 || i === arr.length - 1) // First and last initial
       .join('')
       .toUpperCase();
   };
 
+
+  // Define menu items
+  const menuItems = [
+    { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", tooltip: "Dashboard" },
+    { href: "/dashboard/assignments", icon: BookCheck, label: "Assignments", tooltip: "Assignments" },
+    { href: "/dashboard/projects", icon: FolderKanban, label: "Personal Projects", tooltip: "Personal Projects" },
+    { href: "/dashboard/college-projects", icon: Briefcase, label: "College Projects", tooltip: "College Projects" },
+    { href: "/dashboard/placements", icon: Briefcase /* TODO: Change Icon */, label: "Placements", tooltip: "Placements" },
+    { href: "/dashboard/certificates", icon: Award, label: "Certificates", tooltip: "Certificates" },
+    { href: "/dashboard/courses", icon: GraduationCap, label: "Courses", tooltip: "Courses" },
+  ];
+
   return (
     <SidebarProvider defaultOpen>
-      <Sidebar>
-        <SidebarHeader className="p-4">
-            <div className="flex items-center gap-3">
-                <Avatar className="size-10">
-                    <AvatarImage src={`https://avatar.vercel.sh/${userName?.replace(/\s+/g, '-').toLowerCase() || 'user'}.png`} alt={userName || 'User'} />
-                    <AvatarFallback>{getInitials(userName)}</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col">
-                    <span className="text-base font-semibold text-sidebar-foreground">{userName}</span>
-                    <span className="text-xs text-sidebar-foreground/70">Student</span>
+      <Sidebar variant="inset" collapsible="icon">
+        <SidebarHeader className="p-3 border-b border-sidebar-border">
+            {isLoading ? (
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-10 rounded-full" />
+                <div className="flex flex-col space-y-1">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-16" />
                 </div>
-            </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                  <Avatar className="size-10 border border-sidebar-border/50">
+                      {/* Use a placeholder or initials */}
+                      <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground">{getInitials(userName)}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col overflow-hidden">
+                      <span className="text-sm font-semibold text-sidebar-foreground truncate">{userName}</span>
+                      <span className="text-xs text-sidebar-foreground/70">Student Dashboard</span>
+                  </div>
+              </div>
+            )}
         </SidebarHeader>
-        <SidebarContent className="p-2">
+
+        <SidebarContent className="p-2 flex-1">
           <SidebarMenu>
-            <SidebarMenuItem>
-               {/* Use pathname for isActive check and pass href */}
-              <SidebarMenuButton href="/dashboard" tooltip="Dashboard" isActive={pathname === '/dashboard'}>
-                <LayoutDashboard />
-                <span>Dashboard</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-               {/* Use pathname for isActive check and pass href */}
-              <SidebarMenuButton href="/dashboard/assignments" tooltip="Assignments" isActive={pathname === '/dashboard/assignments'}>
-                <BookCheck />
-                <span>Assignments</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              {/* Use pathname for isActive check and pass href */}
-              <SidebarMenuButton href="/dashboard/projects" tooltip="Projects" isActive={pathname === '/dashboard/projects'}>
-                <FolderKanban />
-                <span>Projects</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-               {/* Use pathname for isActive check and pass href */}
-              <SidebarMenuButton href="/dashboard/college-projects" tooltip="College Projects" isActive={pathname === '/dashboard/college-projects'}>
-                <Briefcase /> {/* Using Briefcase as stand-in */}
-                <span>College Projects</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-               {/* Use pathname for isActive check and pass href */}
-              <SidebarMenuButton href="/dashboard/placements" tooltip="Placements" isActive={pathname === '/dashboard/placements'}>
-                <Briefcase />
-                <span>Placements</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-               {/* Use pathname for isActive check and pass href */}
-              <SidebarMenuButton href="/dashboard/certificates" tooltip="Certificates" isActive={pathname === '/dashboard/certificates'}>
-                <Award />
-                <span>Certificates</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-               {/* Use pathname for isActive check and pass href */}
-              <SidebarMenuButton href="/dashboard/courses" tooltip="Courses" isActive={pathname === '/dashboard/courses'}>
-                <GraduationCap />
-                <span>Courses</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+             {menuItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton href={item.href} tooltip={item.tooltip} isActive={pathname === item.href}>
+                        <item.icon />
+                        <span>{item.label}</span>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+             ))}
           </SidebarMenu>
         </SidebarContent>
+
+         <SidebarSeparator />
+
         <SidebarFooter className="p-2">
-            <Button variant="ghost" className="w-full justify-start gap-2" onClick={handleLogout}>
-                <LogOut />
-                <span>Logout</span>
-            </Button>
+            <SidebarMenu>
+                <SidebarMenuItem>
+                     <SidebarMenuButton onClick={handleLogout} tooltip="Logout">
+                        <LogOut />
+                        <span>Logout</span>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset className="p-4 md:p-6">
-         <header className="mb-6 flex items-center justify-between">
-            <div className="md:hidden"> {/* Show trigger only on mobile */}
-                <SidebarTrigger />
-            </div>
-            {/* Add breadcrumbs or other header content here if needed */}
+
+      <SidebarInset className="p-4 md:p-6 transition-all duration-300 ease-in-out">
+         {/* Mobile Header */}
+         <header className="mb-6 flex items-center justify-between md:hidden border-b pb-4">
+             <div className="flex items-center gap-2">
+                <BookOpenCheck className="h-6 w-6 text-primary" />
+                <span className="font-semibold text-lg">NextUp</span>
+             </div>
+            <SidebarTrigger />
          </header>
-        {children}
+
+         {/* Main Content Area */}
+         {isLoading ? (
+             <div className="space-y-6">
+                <Skeleton className="h-8 w-1/3" />
+                <Skeleton className="h-5 w-2/3" />
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {[...Array(6)].map((_, i) => ( <Skeleton key={i} className="h-24 rounded-lg" /> ))}
+                </div>
+             </div>
+         ) : (
+            <div className="transition-opacity duration-300 ease-in-out">
+                {children}
+            </div>
+         )}
+
       </SidebarInset>
     </SidebarProvider>
   );
 }
-

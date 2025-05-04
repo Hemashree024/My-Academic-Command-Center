@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -7,13 +8,15 @@ import useLocalStorage from '@/hooks/useLocalStorage';
 import type { Task } from '@/types';
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 
 export default function AssignmentsPage() {
   const [userName, setUserName] = useState<string | null>(null);
   // Use username-specific key for localStorage
-  const storageKey = userName ? `${userName}-assignments` : 'assignments';
+  const storageKey = userName ? `${userName}-assignments` : 'assignments-fallback'; // Added fallback key
   const [tasks, setTasks] = useLocalStorage<Task[]>(storageKey, []);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isFormVisible, setIsFormVisible] = useState(false); // Control form visibility
   const [mounted, setMounted] = useState(false);
   const { toast } = useToast();
 
@@ -24,11 +27,13 @@ export default function AssignmentsPage() {
     setUserName(storedName);
   }, []);
 
-   // Recalculate storageKey when userName changes
+   // Recalculate storageKey and potentially load data when userName changes
    useEffect(() => {
     if (userName) {
-        // Potential logic to migrate tasks if needed, or just start fresh for the user
-        // For now, it will just use the new key
+        // The useLocalStorage hook handles loading data based on the key change
+        // Reset editing state if user changes (though unlikely in this flow)
+        setEditingTask(null);
+        setIsFormVisible(false);
     }
    }, [userName]);
 
@@ -44,7 +49,9 @@ export default function AssignmentsPage() {
      toast({
       title: "Assignment Added",
       description: `"${newTask.description}" added successfully.`,
+      variant: 'default' // Explicitly default, though optional
     });
+    setIsFormVisible(false); // Hide form after adding
   };
 
   // Handler to toggle task completion status
@@ -62,7 +69,7 @@ export default function AssignmentsPage() {
         toast({
           title: `Assignment ${wasCompleted ? 'Incomplete' : 'Completed'}`,
           description: `"${taskToUpdate.description}" marked as ${wasCompleted ? 'incomplete' : 'complete'}.`,
-          variant: !wasCompleted ? undefined : "default", // 'undefined' uses the default variant styling
+          variant: wasCompleted ? 'default' : 'success', // Use success variant for completion
         });
      }
   };
@@ -80,9 +87,10 @@ export default function AssignmentsPage() {
      }
   };
 
-   // Handler to set the task currently being edited
+   // Handler to set the task currently being edited and show form
    const handleSetEditTask = (task: Task) => {
     setEditingTask(task);
+    setIsFormVisible(true); // Show form for editing
    };
 
    // Handler to save the edited task
@@ -90,43 +98,72 @@ export default function AssignmentsPage() {
     setTasks(prevTasks =>
       prevTasks.map(task => (task.id === updatedTask.id ? updatedTask : task))
     );
-    setEditingTask(null);
+    setEditingTask(null); // Clear editing state
+    setIsFormVisible(false); // Hide form after editing
      toast({
        title: "Assignment Updated",
        description: `"${updatedTask.description}" updated successfully.`,
+       variant: 'default'
      });
   };
 
-   // Handler to cancel editing
+   // Handler to cancel editing and hide form
   const handleCancelEdit = () => {
     setEditingTask(null);
+    setIsFormVisible(false); // Hide form on cancel
   };
+
+  // Handler to show the form for adding a new task
+  const handleShowAddForm = () => {
+    setEditingTask(null); // Ensure not in editing mode
+    setIsFormVisible(true);
+  }
 
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-3xl font-bold text-primary mb-2">Assignments</h1>
-        <p className="text-lg text-muted-foreground">Track your college assignments.</p>
+      <header className="border-b pb-4 mb-6">
+        <h1 className="text-3xl font-bold text-primary tracking-tight mb-1">Assignments</h1>
+        <p className="text-lg text-muted-foreground">Track your upcoming and completed assignments.</p>
       </header>
 
-      <TaskForm
-          onAddTask={handleAddTask}
-          onEditTask={handleEditTask}
-          editingTask={editingTask}
-          onCancelEdit={handleCancelEdit}
-        />
+      {/* Show Form or Add Button */}
+      {mounted && userName ? (
+          isFormVisible ? (
+               <TaskForm
+                  onAddTask={handleAddTask}
+                  onEditTask={handleEditTask}
+                  editingTask={editingTask}
+                  onCancelEdit={handleCancelEdit}
+                />
+          ) : (
+              <div className="flex justify-end">
+                 <Button onClick={handleShowAddForm}>Add New Assignment</Button>
+              </div>
+          )
+      ) : null } {/* Don't show button or form until mounted */}
 
-      {/* Only render TaskList on the client after mounting and userName is available */}
-      {mounted && userName && (
+
+      {/* Task List - Show skeleton while loading */}
+      {mounted && userName ? (
           <TaskList
             tasks={tasks}
             onToggleComplete={handleToggleComplete}
             onDeleteTask={handleDeleteTask}
-            onEditTask={handleSetEditTask}
+            onEditTask={handleSetEditTask} // Pass the handler to show form for edit
           />
+      ) : (
+          // Skeleton Loader for TaskList
+          <div className="space-y-6">
+            <Skeleton className="h-10 w-full mb-4" />
+            <Skeleton className="h-8 w-1/3 mb-4" />
+            <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-40 rounded-lg" />)}
+            </div>
+         </div>
       )}
-       <Toaster /> {/* Ensure Toaster is available */}
+       {/* <Toaster /> Already in root layout */}
     </div>
   );
 }
+

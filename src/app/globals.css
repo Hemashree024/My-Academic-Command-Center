@@ -2,10 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer base {
   :root {
     --background: 204 17% 93%; /* #ecf0f1 - Light Gray */
@@ -26,6 +22,8 @@ body {
     --destructive-foreground: 0 0% 98%; /* Default destructive foreground */
     --success: 145 63% 49%; /* #2ecc71 - Green */
     --success-foreground: 0 0% 100%; /* White */
+    --warning: 38 92% 50%; /* Yellow/Orange */
+    --warning-foreground: 0 0% 10%; /* Dark text on warning */
     --border: 204 17% 80%; /* Darker gray border */
     --input: 0 0% 100%; /* White input background */
     --ring: 208 70% 53%; /* Calm Blue for ring */
@@ -35,52 +33,54 @@ body {
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 0 0% 98%; /* Slightly off-white */
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-primary: 208 70% 53%; /* Match main primary */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 204 17% 93%; /* Match background */
     --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-border: 204 17% 85%; /* Slightly darker border */
+    --sidebar-ring: 208 70% 53%; /* Match main ring */
   }
 
   .dark {
     /* Keeping dark mode defaults for now, can be customized later */
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 208 70% 53%; /* Calm Blue */
+    --background: 240 6% 10%; /* Dark Blue-Gray */
+    --foreground: 0 0% 98%; /* Light Gray */
+    --card: 240 5% 14%; /* Slightly Lighter Dark Blue-Gray */
+    --card-foreground: 0 0% 98%; /* Light Gray */
+    --popover: 240 5% 14%; /* Slightly Lighter Dark Blue-Gray */
+    --popover-foreground: 0 0% 98%; /* Light Gray */
+    --primary: 208 70% 58%; /* Slightly brighter Calm Blue for dark mode */
     --primary-foreground: 0 0% 100%; /* White */
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --success: 145 63% 49%; /* Green */
+    --secondary: 240 4% 20%; /* Darker Gray */
+    --secondary-foreground: 0 0% 98%; /* Light Gray */
+    --muted: 240 4% 20%; /* Darker Gray */
+    --muted-foreground: 0 0% 63.9%; /* Lighter Muted Text */
+    --accent: 240 4% 24%; /* Slightly lighter accent */
+    --accent-foreground: 0 0% 98%; /* Light Gray */
+    --destructive: 0 70% 50%; /* Slightly less intense red */
+    --destructive-foreground: 0 0% 98%; /* Light Gray */
+    --success: 145 60% 55%; /* Slightly brighter Green */
     --success-foreground: 0 0% 100%; /* White */
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 208 70% 53%; /* Calm Blue */
+    --warning: 40 90% 55%; /* Slightly brighter Yellow/Orange */
+    --warning-foreground: 0 0% 10%; /* Dark text on warning */
+    --border: 240 4% 20%; /* Darker Gray */
+    --input: 240 4% 18%; /* Darker input */
+    --ring: 208 70% 58%; /* Calm Blue */
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
+    --sidebar-background: 240 6% 12%; /* Slightly darker than card */
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary: 208 70% 58%; /* Match primary */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent: 240 4% 20%; /* Match secondary */
     --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-border: 240 4% 20%; /* Match border */
+    --sidebar-ring: 208 70% 58%; /* Match ring */
   }
 }
 
@@ -89,16 +89,30 @@ body {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    /* Optional: Add subtle gradient */
+    /* @apply bg-gradient-to-br from-background via-background to-secondary/20; */
   }
 }
 
-/* Add success variant for Button */
+/* Add success/warning variants for Button and Badge */
 @layer components {
   .btn-success {
     @apply bg-success text-success-foreground hover:bg-success/90;
   }
   .btn-outline-success {
-     @apply border border-success bg-background text-success hover:bg-success/10;
+     @apply border border-success bg-transparent text-success hover:bg-success/10;
+  }
+   .btn-warning {
+    @apply bg-warning text-warning-foreground hover:bg-warning/90;
+  }
+  .btn-outline-warning {
+     @apply border border-warning bg-transparent text-warning hover:bg-warning/10;
+  }
+  .badge-success {
+      @apply border-transparent bg-success text-success-foreground;
+  }
+   .badge-warning {
+      @apply border-transparent bg-warning text-warning-foreground;
   }
 }

@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Plus, Save } from 'lucide-react';
+import { CalendarIcon, Plus, Save, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Textarea } from '@/components/ui/textarea'; // Import Textarea
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'; // Use Card for structure
 
 interface AssignmentFormProps {
   onAddTask: (task: Omit<Task, 'id' | 'completed'>) => void;
@@ -23,17 +24,22 @@ export function TaskForm({ onAddTask, onEditTask, editingTask, onCancelEdit }: A
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
   const [tagsInput, setTagsInput] = useState('');
-  const [notes, setNotes] = useState(''); // Add state for notes
+  const [notes, setNotes] = useState('');
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
   useEffect(() => {
     if (editingTask) {
       setDescription(editingTask.description);
-      setDueDate(new Date(editingTask.dueDate));
+      // Handle potential invalid date strings gracefully
+      try {
+        const parsedDate = new Date(editingTask.dueDate);
+        setDueDate(isNaN(parsedDate.getTime()) ? new Date() : parsedDate);
+      } catch {
+        setDueDate(new Date());
+      }
       setTagsInput(editingTask.tags.join(', '));
-      setNotes((editingTask as any).notes || ''); // Assuming notes might be added to Task type later
+      setNotes((editingTask as any).notes || '');
     } else {
-      // Reset form when not editing
       resetForm();
     }
   }, [editingTask]);
@@ -43,7 +49,8 @@ export function TaskForm({ onAddTask, onEditTask, editingTask, onCancelEdit }: A
         setDueDate(new Date());
         setTagsInput('');
         setNotes('');
-        // Don't reset editingTask here, let parent handle it via onCancelEdit
+        setIsPopoverOpen(false); // Ensure popover is closed
+        // Don't reset editingTask here, parent handles it via onCancelEdit
    }
 
   const handleSubmit = (e: FormEvent) => {
@@ -56,7 +63,7 @@ export function TaskForm({ onAddTask, onEditTask, editingTask, onCancelEdit }: A
       description: description.trim(),
       dueDate: dueDate.toISOString(),
       tags,
-      notes: notes.trim() || undefined, // Add notes to task data
+      notes: notes.trim() || undefined,
     };
 
     if (editingTask) {
@@ -65,11 +72,13 @@ export function TaskForm({ onAddTask, onEditTask, editingTask, onCancelEdit }: A
       onAddTask(taskData);
     }
 
-    // Reset form fields only if adding a new task, otherwise handled by onCancelEdit or successful save
+    // Parent component will handle closing the form or clearing editing state
+    // Only reset local form state if ADDING a new task
     if (!editingTask) {
         resetForm();
     }
-    // Parent component will handle closing the form or clearing editing state
+    // Close popover if open
+    setIsPopoverOpen(false);
   };
 
    const handleDateSelect = (date: Date | undefined) => {
@@ -84,82 +93,93 @@ export function TaskForm({ onAddTask, onEditTask, editingTask, onCancelEdit }: A
 
 
   return (
-    <form onSubmit={handleSubmit} className="mb-8 p-6 bg-card rounded-lg shadow space-y-4">
-      <h2 className="text-xl font-semibold text-primary mb-4">{editingTask ? 'Edit Assignment' : 'Add New Assignment'}</h2>
-      <div>
-        <Label htmlFor="description">Assignment Description</Label>
-        <Input
-          id="description"
-          type="text"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="e.g., Calculus Homework 5"
-          required
-          className="mt-1"
-        />
-      </div>
+     <Card className="mb-8 border border-border/50 shadow-sm">
+         <CardHeader>
+             <CardTitle className="text-xl text-primary">
+                {editingTask ? 'Edit Assignment' : 'Add New Assignment'}
+             </CardTitle>
+         </CardHeader>
+        <form onSubmit={handleSubmit}>
+            <CardContent className="space-y-5"> {/* Increased spacing */}
+              <div className="space-y-1.5"> {/* Group label and input */}
+                <Label htmlFor="description" className="font-medium">Assignment Description</Label>
+                <Input
+                  id="description"
+                  type="text"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="e.g., Calculus Homework 5"
+                  required
+                  className="mt-1 h-10" // Standard input height
+                />
+              </div>
 
-       <div>
-        <Label htmlFor="dueDate">Due Date</Label>
-        <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant={"outline"}
-              className={cn(
-                "w-full justify-start text-left font-normal mt-1",
-                !dueDate && "text-muted-foreground"
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dueDate ? format(dueDate, "PPP") : <span>Pick a date</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={dueDate}
-              onSelect={handleDateSelect}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
+               <div className="space-y-1.5">
+                <Label htmlFor="dueDate" className="font-medium">Due Date</Label>
+                <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal h-10", // Standard height
+                        !dueDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dueDate ? format(dueDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dueDate}
+                      onSelect={handleDateSelect}
+                      initialFocus
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))} // Disable past dates
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-       <div>
-          <Label htmlFor="notes">Notes (Optional)</Label>
-          <Textarea
-            id="notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="e.g., Specific instructions, chapter references"
-            className="mt-1"
-          />
-       </div>
+               <div className="space-y-1.5">
+                  <Label htmlFor="notes" className="font-medium">Notes (Optional)</Label>
+                  <Textarea
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="e.g., Specific instructions, chapter references, required format..."
+                    className="mt-1 min-h-[60px]" // Adjusted height
+                    rows={3}
+                  />
+               </div>
 
 
-       <div>
-        <Label htmlFor="tags">Tags (comma-separated)</Label>
-        <Input
-          id="tags"
-          type="text"
-          value={tagsInput}
-          onChange={(e) => setTagsInput(e.target.value)}
-          placeholder="e.g., urgent, math, reading"
-          className="mt-1"
-        />
-      </div>
+               <div className="space-y-1.5">
+                <Label htmlFor="tags" className="font-medium">Tags (Optional, comma-separated)</Label>
+                <Input
+                  id="tags"
+                  type="text"
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  placeholder="e.g., urgent, math, reading, research"
+                  className="mt-1 h-10"
+                />
+              </div>
+            </CardContent>
 
-      <div className="flex justify-end space-x-2">
-         {editingTask && (
-            <Button type="button" variant="outline" onClick={handleCancel}>
-                Cancel
-            </Button>
-         )}
-        <Button type="submit" variant={editingTask ? "default" : "default"}>
-           {editingTask ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
-          {editingTask ? 'Save Changes' : 'Add Assignment'}
-        </Button>
-      </div>
-    </form>
+            <CardFooter className="flex justify-end space-x-3 bg-secondary/20 p-4 border-t">
+                 {editingTask && (
+                    <Button type="button" variant="outline" onClick={handleCancel}>
+                        <X className="mr-2 h-4 w-4" />
+                        Cancel
+                    </Button>
+                 )}
+                <Button type="submit">
+                   {editingTask ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
+                  {editingTask ? 'Save Changes' : 'Add Assignment'}
+                </Button>
+            </CardFooter>
+        </form>
+     </Card>
   );
 }

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { BookOpenCheck } from 'lucide-react'; // Using an icon
 
 export default function LoginPage() {
   const [name, setName] = useState('');
@@ -29,7 +30,7 @@ export default function LoginPage() {
 
     toast({
       title: "Login Successful",
-      description: `Welcome back, ${name.trim()}!`,
+      description: `Welcome back, ${name.trim()}! Redirecting to dashboard...`,
     });
 
     // Redirect to dashboard
@@ -37,29 +38,33 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex items-center justify-center min-h-screen bg-gradient-to-br from-background to-secondary/50">
-      <Card className="w-full max-w-sm shadow-lg">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-primary">Welcome to NextUp</CardTitle>
-          <CardDescription>Please enter your name to continue</CardDescription>
+    <main className="flex items-center justify-center min-h-screen bg-gradient-to-br from-background to-secondary/30 p-4">
+      <Card className="w-full max-w-md shadow-xl border border-border/50 overflow-hidden">
+        <CardHeader className="text-center p-8 bg-gradient-to-b from-card to-secondary/10 border-b">
+           <div className="flex justify-center items-center mb-4">
+              <BookOpenCheck className="h-12 w-12 text-primary" />
+           </div>
+          <CardTitle className="text-3xl font-bold text-primary tracking-tight">Welcome to NextUp</CardTitle>
+          <CardDescription className="text-muted-foreground mt-1">Your Academic Command Center</CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
-          <CardContent className="space-y-4">
+          <CardContent className="p-6 space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name" className="font-semibold">Full Name</Label>
               <Input
                 id="name"
                 type="text"
-                placeholder="Enter your name"
+                placeholder="e.g., Jane Doe"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="mt-1"
+                className="mt-1 h-11 text-base" // Slightly larger input
               />
+               <p className="text-xs text-muted-foreground pt-1">Please enter your name to access your dashboard.</p>
             </div>
           </CardContent>
-          <CardFooter>
-            <Button type="submit" className="w-full">
+          <CardFooter className="bg-secondary/20 p-6 border-t">
+            <Button type="submit" className="w-full h-11 text-lg">
               Login
             </Button>
           </CardFooter>
