@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, BookCheck, Briefcase, FolderKanban, Award, GraduationCap, LogOut, BookOpenCheck, User } from 'lucide-react';
+import { LayoutDashboard, BookCheck, Briefcase, FolderKanban, Award, GraduationCap, LogOut, BookOpenCheck, User, CaseLower } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 
@@ -75,7 +75,7 @@ export default function DashboardLayout({
     { href: "/dashboard/assignments", icon: BookCheck, label: "Assignments", tooltip: "Assignments" },
     { href: "/dashboard/projects", icon: FolderKanban, label: "Personal Projects", tooltip: "Personal Projects" },
     { href: "/dashboard/college-projects", icon: Briefcase, label: "College Projects", tooltip: "College Projects" },
-    { href: "/dashboard/placements", icon: Briefcase /* TODO: Change Icon */, label: "Placements", tooltip: "Placements" },
+    { href: "/dashboard/placements", icon: CaseLower, label: "Placements", tooltip: "Placements" },
     { href: "/dashboard/certificates", icon: Award, label: "Certificates", tooltip: "Certificates" },
     { href: "/dashboard/courses", icon: GraduationCap, label: "Courses", tooltip: "Courses" },
   ];
@@ -96,6 +96,8 @@ export default function DashboardLayout({
               <div className="flex items-center gap-3">
                   <Avatar className="size-10 border border-sidebar-border/50">
                       {/* Use a placeholder or initials */}
+                       {/* Add a generic user image or keep initials */}
+                       <AvatarImage src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userName || 'User')}&background=random`} alt={userName || 'User'} />
                       <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground">{getInitials(userName)}</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col overflow-hidden">
@@ -124,7 +126,7 @@ export default function DashboardLayout({
         <SidebarFooter className="p-2">
             <SidebarMenu>
                 <SidebarMenuItem>
-                     <SidebarMenuButton onClick={handleLogout} tooltip="Logout">
+                     <SidebarMenuButton onClick={handleLogout} tooltip="Logout"> {/* No href here */}
                         <LogOut />
                         <span>Logout</span>
                     </SidebarMenuButton>

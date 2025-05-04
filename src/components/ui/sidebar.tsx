@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link" // Import next/link
+import Link, { type LinkProps } from "next/link" // Import next/link and LinkProps
 import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
 import { PanelLeft } from "lucide-react"
@@ -534,13 +534,31 @@ const sidebarMenuButtonVariants = cva(
   }
 )
 
+// Define props for the SidebarMenuButton component
+type SidebarMenuButtonProps = React.ComponentPropsWithRef<"button"> & // Use button props for base
+  (
+    | ({
+        href: LinkProps["href"]; // If href is provided, it's a Link
+        asChild?: false;
+        onClick?: React.MouseEventHandler<HTMLAnchorElement>; // Click handler for Link
+        ref?: React.Ref<HTMLAnchorElement>; // Ref for Link
+      } & Omit<React.ComponentPropsWithRef<"a">, "href"> & LinkProps) // Omit 'href' from 'a' props as Link handles it
+    | ({
+        href?: undefined; // If href is not provided, it's a Button
+        asChild?: false;
+        onClick?: React.MouseEventHandler<HTMLButtonElement>; // Click handler for Button
+        ref?: React.Ref<HTMLButtonElement>; // Ref for Button
+      })
+    | { asChild: true; href?: LinkProps["href"]; } // Allow asChild for custom components
+  ) & {
+    isActive?: boolean;
+    tooltip?: string | React.ComponentProps<typeof TooltipContent>;
+  } & VariantProps<typeof sidebarMenuButtonVariants>;
+
+
 const SidebarMenuButton = React.forwardRef<
-  HTMLAnchorElement, // Changed from HTMLButtonElement to HTMLAnchorElement
-  React.ComponentProps<typeof Link> & { // Changed from button props to Link props
-    asChild?: boolean
-    isActive?: boolean
-    tooltip?: string | React.ComponentProps<typeof TooltipContent>
-  } & VariantProps<typeof sidebarMenuButtonVariants>
+    HTMLElement, // Use HTMLElement as the base ref type
+    SidebarMenuButtonProps
 >(
   (
     {
@@ -550,38 +568,49 @@ const SidebarMenuButton = React.forwardRef<
       size = "default",
       tooltip,
       className,
-      href, // Explicitly expect href for Link
+      href,
+      children,
       ...props
     },
     ref
   ) => {
-    const Comp = asChild ? Slot : Link; // Use Link as the default component
     const { isMobile, state, setOpenMobile } = useSidebar(); // Get setOpenMobile to close mobile sidebar on click
 
+    // Determine the component to render based on the presence of 'href'
+    const Comp = asChild ? Slot : (href ? Link : 'button');
+    const isLink = href !== undefined;
+
     // Handle click for mobile sidebar closure
-    const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    const handleClick = (event: React.MouseEvent<HTMLElement>) => {
         if (isMobile) {
             setOpenMobile(false);
         }
         // If there's an onClick prop from the parent, call it
-        if (props.onClick) {
-            props.onClick(event);
+        const parentOnClick = (props as any).onClick;
+        if (parentOnClick) {
+            parentOnClick(event);
         }
     };
 
+    const commonProps = {
+        'data-sidebar': "menu-button",
+        'data-size': size,
+        'data-active': isActive,
+        className: cn(sidebarMenuButtonVariants({ variant, size }), className),
+        onClick: handleClick,
+        ...props,
+    };
 
-    const buttonContent = (
-      <Comp
-        ref={ref}
-        data-sidebar="menu-button"
-        data-size={size}
-        data-active={isActive}
-        className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
-        href={href} // Pass href to Link
-        onClick={handleClick} // Add click handler
-        {...props}
-      />
-    )
+    const buttonContent = React.createElement(
+        Comp,
+        {
+            ref: ref as any, // Cast ref to any to handle different element types
+            ...(isLink ? { href } : {}), // Spread href only if it's a Link
+            ...commonProps,
+        },
+        children // Pass children correctly
+    );
+
 
     if (!tooltip) {
       return buttonContent
