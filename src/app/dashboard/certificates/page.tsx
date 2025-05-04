@@ -26,6 +26,7 @@ import Link from 'next/link';
 import Image from 'next/image'; // For potential image previews
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 import type { Certificate } from '@/types'; // Import the specific type
+import { format } from 'date-fns'; // Import date-fns
 
 export default function CertificatesPage() {
   const [userName, setUserName] = useState<string | null>(null);
@@ -248,8 +249,8 @@ export default function CertificatesPage() {
                          <CardTitle className="text-lg">{cert.title}</CardTitle>
                          <CardDescription>{cert.issuingOrganization}</CardDescription>
                          <div className="text-xs text-muted-foreground pt-2 space-y-1"> {/* Increased top padding */}
-                             <p className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> Issued: {new Date(cert.issueDate).toLocaleDateString()}</p>
-                             {cert.expirationDate && <p className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> Expires: {new Date(cert.expirationDate).toLocaleDateString()}</p>}
+                             <p className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> Issued: {format(new Date(cert.issueDate), 'PPP')}</p>
+                             {cert.expirationDate && <p className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> Expires: {format(new Date(cert.expirationDate), 'PPP')}</p>}
                              {cert.credentialId && <p className="flex items-center gap-1.5 text-xs">ID: {cert.credentialId}</p>}
                          </div>
                      </CardHeader>

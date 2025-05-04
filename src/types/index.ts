@@ -8,32 +8,40 @@ export interface Task {
   notes?: string; // Optional field for assignment notes
 }
 
-// You might want to create more specific types later, e.g., Project, Placement, Certificate, Course
-// For now, reusing/extending Task might be sufficient for basic CRUD operations.
-
-export interface Project extends Task {
-  details?: string;
-  status?: 'Planning' | 'In Progress' | 'Completed' | 'On Hold';
-  tags: string[]; // Ensure tags is always an array
+// Base interface for items that can be marked completed and have optional details/tags
+interface CompletableItem {
+    id: string;
+    completed: boolean;
+    details?: string; // Reuse details field name
+    notes?: string; // Reuse notes field name
+    tags?: string[]; // Ensure tags is always an array or undefined
 }
 
-export interface CollegeProject extends Task {
+
+export interface Project extends CompletableItem {
+  description: string; // Keep description for projects
+  dueDate: string; // ISO string
+  status: 'Planning' | 'In Progress' | 'Completed' | 'On Hold';
+  // completed field will be synced with status === 'Completed'
+}
+
+export interface CollegeProject extends CompletableItem {
+  description: string; // Keep description
   course?: string;
   teamMembers?: string[];
-  details?: string;
-  status?: 'Planning' | 'In Progress' | 'Completed' | 'Submitted' | 'Graded';
-  tags: string[]; // Ensure tags is always an array
+  dueDate: string; // ISO string
+  status: 'Planning' | 'In Progress' | 'Completed' | 'Submitted' | 'Graded';
+  // completed field will be synced with status being 'Completed', 'Submitted', or 'Graded'
 }
 
-export interface PlacementActivity {
-  id: string;
+export interface PlacementActivity extends CompletableItem {
   company: string;
   role: string;
   status: 'Applied' | 'Interviewing' | 'Offer Received' | 'Offer Accepted' | 'Offer Declined' | 'Rejected' | 'Withdrawn';
   applicationDate: string; // ISO String
   interviewDate?: string; // ISO String
-  notes?: string;
   link?: string; // Job posting link
+  // completed field will be true if status is Offer Accepted, Offer Declined, Rejected, or Withdrawn
 }
 
 export interface Certificate {
@@ -46,10 +54,10 @@ export interface Certificate {
   credentialUrl?: string;
   skills?: string[]; // Skills gained
   notes?: string;
+  // Certificates are inherently 'completed' upon adding. No 'completed' field needed.
 }
 
-export interface Course {
-  id: string;
+export interface Course extends CompletableItem {
   title: string;
   platform: string; // e.g., Coursera, Udemy, University
   status: 'Not Started' | 'In Progress' | 'Completed';
@@ -57,16 +65,14 @@ export interface Course {
   link?: string; // Link to course page
   certificateUrl?: string; // Link to certificate if separate
   rating?: number; // 1-5 star rating
-  notes?: string;
+  // completed field will be synced with status === 'Completed'
 }
 
-export interface ImportantItem {
-    id: string;
+export interface ImportantItem extends CompletableItem {
     title: string;
-    description?: string;
     dueDate?: string; // ISO String (Optional deadline)
-    tags?: string[];
     priority: 'Low' | 'Medium' | 'High';
+    // completed field added via CompletableItem
 }
 
 export interface EventItem {
@@ -77,4 +83,8 @@ export interface EventItem {
     endDate?: string; // ISO String (Optional)
     location?: string;
     link?: string; // Link to event page/details
+    // Events are time-based, past/upcoming distinction serves as completion status.
 }
+
+// Combine all possible item types for potential future use (e.g., unified search)
+export type DashboardItem = Task | Project | CollegeProject | PlacementActivity | Certificate | Course | ImportantItem | EventItem;

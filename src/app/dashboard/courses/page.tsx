@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Pencil, Trash2, Link as LinkIcon, BookOpen, Star, Info } from 'lucide-react'; // Added Info
+import { Checkbox } from '@/components/ui/checkbox'; // Import Checkbox
 import {
     AlertDialog,
     AlertDialogAction,
@@ -27,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 import type { Course } from '@/types'; // Import specific type
 import { cn } from '@/lib/utils'; // Import cn
+import { format } from 'date-fns'; // Import date-fns
 
 export default function CoursesPage() {
   const [userName, setUserName] = useState<string | null>(null);
@@ -99,16 +101,18 @@ export default function CoursesPage() {
         validCertUrl = 'https://' + validCertUrl;
      }
 
+     const isCompleted = status === 'Completed';
 
      const courseData: Omit<Course, 'id'> = {
         title: title.trim(),
         platform: platform.trim(),
         status,
-        completionDate: completionDate && status === 'Completed' ? new Date(completionDate).toISOString() : undefined,
+        completionDate: completionDate && isCompleted ? new Date(completionDate).toISOString() : undefined,
         link: validLink || undefined,
         certificateUrl: validCertUrl || undefined,
         rating: rating,
         notes: notes.trim() || undefined,
+        completed: isCompleted, // Sync completed status
      };
 
      if (editingCourse) {
@@ -152,15 +156,49 @@ export default function CoursesPage() {
         }
     }
 
-   // Sort courses using useMemo
+    // Toggle course completion status
+   const handleToggleComplete = (id: string) => {
+     const courseToUpdate = courses.find(c => c.id === id);
+     if (!courseToUpdate) return;
+
+     const wasCompleted = courseToUpdate.completed;
+     const newStatus = wasCompleted ? 'In Progress' : 'Completed'; // Toggle between In Progress and Completed
+     const newCompletionDate = !wasCompleted ? new Date().toISOString() : undefined; // Set completion date if completing
+
+     setCourses(prevCourses =>
+       prevCourses.map(c =>
+         c.id === id ? { ...c, completed: !wasCompleted, status: newStatus, completionDate: newCompletionDate } : c
+       )
+     );
+
+     toast({
+       title: `Course ${wasCompleted ? 'Marked In Progress' : 'Marked Complete'}`,
+       description: `"${courseToUpdate.title}" status set to ${newStatus}.`,
+       variant: wasCompleted ? 'default' : 'success',
+     });
+   };
+
+   // Sort courses: In Progress/Not Started first, then Completed. Within groups, alphabetically.
    const sortedCourses = useMemo(() => {
        return [...courses].sort((a, b) => {
-         const statusOrder = { 'In Progress': 1, 'Not Started': 2, 'Completed': 3 };
-         const statusCompare = (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
-         if (statusCompare !== 0) return statusCompare;
+         if (a.completed !== b.completed) {
+            return a.completed ? 1 : -1; // In Progress/Not Started first
+         }
+         // Then sort by status order within incomplete group
+         if (!a.completed) {
+             const statusOrder = { 'In Progress': 1, 'Not Started': 2 };
+             const statusCompare = (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
+             if (statusCompare !== 0) return statusCompare;
+         }
+         // Finally, sort alphabetically
          return a.title.localeCompare(b.title);
        });
    }, [courses]);
+
+    // Separate into active and completed *after* sorting
+   const activeCourses = sortedCourses.filter(c => !c.completed);
+   const completedCourses = sortedCourses.filter(c => c.completed);
+
 
    // Render skeleton or null during SSR and initial client render before mount
    if (!isClient) {
@@ -261,87 +299,195 @@ export default function CoursesPage() {
        )}
 
        {userName ? ( // Only render list if user is identified
-         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {sortedCourses.length > 0 ? sortedCourses.map(course => (
-                 <Card key={course.id} className="flex flex-col border border-border/50 shadow-sm transition-shadow duration-200 hover:shadow-lg hover:border-primary/30">
-                     <CardHeader className="pb-3"> {/* Reduced padding */}
-                          <div className="flex justify-between items-start gap-2">
-                             <div>
-                                 <CardTitle className="text-lg">{course.title}</CardTitle>
-                                 <CardDescription>{course.platform}</CardDescription>
-                             </div>
-                              <Badge
-                                variant={course.status === 'Completed' ? 'default' : course.status === 'In Progress' ? 'secondary' : 'outline'}
-                                className={cn(
-                                    'capitalize', // Capitalize status
-                                    course.status === 'Completed' && 'bg-success text-success-foreground',
-                                    course.status === 'In Progress' && 'bg-secondary text-secondary-foreground',
-                                    course.status === 'Not Started' && 'border-primary text-primary'
-                                )}
-                                >
-                                 {course.status}
-                             </Badge>
-                         </div>
-                          <div className="pt-2 space-y-1"> {/* Group details */}
-                             {course.completionDate && (
-                                <p className="text-xs text-muted-foreground">Completed: {new Date(course.completionDate).toLocaleDateString()}</p>
-                             )}
-                             {course.rating && (
-                                 <div className="flex items-center">
-                                     {[...Array(5)].map((_, i) => (
-                                         <Star key={i} className={`h-4 w-4 ${i < (course.rating || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/50'}`} />
-                                     ))}
-                                 </div>
-                             )}
-                          </div>
-                     </CardHeader>
-                     <CardContent className="flex-grow space-y-3 pt-0 pb-4 pl-6 pr-4"> {/* Adjusted padding */}
-                         {course.notes && <p className="text-sm text-muted-foreground line-clamp-3">{course.notes}</p>}
-                         <div className="flex flex-col space-y-1.5 pt-1"> {/* Link section */}
-                             {course.link && (
-                                 <Link href={course.link} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1.5">
-                                     <BookOpen className="h-3.5 w-3.5" /> Course Page
-                                 </Link>
-                             )}
-                             {course.certificateUrl && (
-                                 <Link href={course.certificateUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1.5">
-                                     <LinkIcon className="h-3.5 w-3.5" /> View Certificate
-                                 </Link>
-                             )}
-                         </div>
-                     </CardContent>
-                     <CardFooter className="flex justify-end gap-2 p-3 pt-0 border-t bg-secondary/20">
-                         <Button variant="ghost" size="icon" onClick={() => handleEditClick(course)} aria-label={`Edit course "${course.title}"`}>
-                             <Pencil className="h-4 w-4" />
-                         </Button>
-                         <AlertDialog>
-                           <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90 hover:bg-destructive/10" aria-label={`Delete course "${course.title}"`}>
-                                 <Trash2 className="h-4 w-4" />
-                              </Button>
-                           </AlertDialogTrigger>
-                           <AlertDialogContent>
-                              <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Course?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                      This will permanently delete the course "{course.title}". This action cannot be undone.
-                                  </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteCourse(course.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                              </AlertDialogFooter>
-                           </AlertDialogContent>
-                         </AlertDialog>
-                     </CardFooter>
-                 </Card>
-             )) : (
-                  <div className="col-span-full text-center py-10 px-4 border border-dashed rounded-lg">
-                     <Info className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
-                     <p className="text-muted-foreground italic">No courses added yet. Click "Add Course" to get started.</p>
+         <>
+             {/* Active Courses */}
+             <div>
+                 <h2 className="text-2xl font-semibold mb-4 text-primary border-b pb-2">Active Courses</h2>
+                 {activeCourses.length > 0 ? (
+                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {activeCourses.map(course => (
+                             <Card key={course.id} className="flex flex-col border border-border/50 shadow-sm transition-shadow duration-200 hover:shadow-lg hover:border-primary/30">
+                                 <CardHeader className="flex flex-row items-start gap-3 space-y-0 pb-2 pt-4 pr-4 pl-4">
+                                      <div className="flex items-center h-6 mt-1">
+                                        <Checkbox
+                                          id={`course-check-${course.id}`}
+                                          checked={course.completed}
+                                          onCheckedChange={() => handleToggleComplete(course.id)}
+                                          aria-label={`Mark course "${course.title}" as complete`}
+                                          className="peer size-5 rounded border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                                        />
+                                      </div>
+                                     <div className="grid gap-0.5 flex-1">
+                                         <div className="flex justify-between items-start gap-2">
+                                             <div>
+                                                 <CardTitle className="text-lg peer-data-[state=checked]:line-through peer-data-[state=checked]:text-muted-foreground">
+                                                     {course.title}
+                                                 </CardTitle>
+                                                 <CardDescription className="peer-data-[state=checked]:line-through peer-data-[state=checked]:text-muted-foreground">
+                                                     {course.platform}
+                                                 </CardDescription>
+                                             </div>
+                                              <Badge
+                                                variant={course.status === 'Completed' ? 'default' : course.status === 'In Progress' ? 'secondary' : 'outline'}
+                                                className={cn(
+                                                    'capitalize whitespace-nowrap',
+                                                    course.status === 'Completed' && 'bg-success text-success-foreground',
+                                                    course.status === 'In Progress' && 'bg-secondary text-secondary-foreground',
+                                                    course.status === 'Not Started' && 'border-primary text-primary'
+                                                )}
+                                                >
+                                                 {course.status}
+                                             </Badge>
+                                         </div>
+                                          <div className="pt-2 space-y-1"> {/* Group details */}
+                                             {course.rating && ( // Show rating only if completed, move later
+                                                 <div className="flex items-center">
+                                                     {[...Array(5)].map((_, i) => (
+                                                         <Star key={i} className={`h-4 w-4 ${i < (course.rating || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/50'}`} />
+                                                     ))}
+                                                 </div>
+                                             )}
+                                          </div>
+                                     </div>
+                                 </CardHeader>
+                                 <CardContent className="flex-grow space-y-3 pt-2 pb-4 pl-12 pr-4">
+                                     {course.notes && <p className="text-sm text-muted-foreground line-clamp-3">{course.notes}</p>}
+                                     <div className="flex flex-col space-y-1.5 pt-1"> {/* Link section */}
+                                         {course.link && (
+                                             <Link href={course.link} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1.5">
+                                                 <BookOpen className="h-3.5 w-3.5" /> Course Page
+                                             </Link>
+                                         )}
+                                         {course.certificateUrl && (
+                                             <Link href={course.certificateUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1.5">
+                                                 <LinkIcon className="h-3.5 w-3.5" /> View Certificate
+                                             </Link>
+                                         )}
+                                     </div>
+                                 </CardContent>
+                                 <CardFooter className="flex justify-end gap-2 p-3 pt-0 border-t bg-secondary/20">
+                                     <Button variant="ghost" size="icon" onClick={() => handleEditClick(course)} aria-label={`Edit course "${course.title}"`}>
+                                         <Pencil className="h-4 w-4" />
+                                     </Button>
+                                     <AlertDialog>
+                                       <AlertDialogTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90 hover:bg-destructive/10" aria-label={`Delete course "${course.title}"`}>
+                                             <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                       </AlertDialogTrigger>
+                                       <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                              <AlertDialogTitle>Delete Course?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                  This will permanently delete the course "{course.title}". This action cannot be undone.
+                                              </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => handleDeleteCourse(course.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                          </AlertDialogFooter>
+                                       </AlertDialogContent>
+                                     </AlertDialog>
+                                 </CardFooter>
+                             </Card>
+                         ))}
+                     </div>
+                 ) : (
+                      <div className="col-span-full text-center py-10 px-4 border border-dashed rounded-lg">
+                         <Info className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+                         <p className="text-muted-foreground italic">No active courses added yet.</p>
+                     </div>
+                 )}
+             </div>
+
+             {/* Completed Courses */}
+              {completedCourses.length > 0 && (
+                 <div className="mt-12">
+                     <h2 className="text-2xl font-semibold mb-4 text-success border-b pb-2">Completed Courses</h2>
+                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                         {completedCourses.map(course => (
+                             <Card key={course.id} className="flex flex-col border border-border/40 bg-card/80 shadow-sm opacity-80 hover:opacity-100 transition-opacity duration-200">
+                                 <CardHeader className="flex flex-row items-start gap-3 space-y-0 pb-2 pt-4 pr-4 pl-4">
+                                      <div className="flex items-center h-6 mt-1">
+                                        <Checkbox
+                                          id={`course-check-${course.id}`}
+                                          checked={course.completed}
+                                          onCheckedChange={() => handleToggleComplete(course.id)}
+                                          aria-label={`Mark course "${course.title}" as incomplete`}
+                                          className="peer size-5 rounded border-success data-[state=checked]:bg-success data-[state=checked]:text-primary-foreground data-[state=checked]:border-success"
+                                        />
+                                      </div>
+                                     <div className="grid gap-0.5 flex-1">
+                                         <div className="flex justify-between items-start gap-2">
+                                            <div>
+                                                 <CardTitle className="text-lg line-through text-muted-foreground">{course.title}</CardTitle>
+                                                 <CardDescription className="line-through text-muted-foreground">{course.platform}</CardDescription>
+                                             </div>
+                                              <Badge
+                                                variant='default'
+                                                className={cn(
+                                                    'capitalize whitespace-nowrap bg-success text-success-foreground'
+                                                )}
+                                                >
+                                                 {course.status}
+                                             </Badge>
+                                         </div>
+                                          <div className="pt-2 space-y-1">
+                                             {course.completionDate && (
+                                                <p className="text-xs text-muted-foreground">Completed: {format(new Date(course.completionDate), 'PPP')}</p>
+                                             )}
+                                             {course.rating && (
+                                                 <div className="flex items-center">
+                                                     {[...Array(5)].map((_, i) => (
+                                                         <Star key={i} className={`h-4 w-4 ${i < (course.rating || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/50'}`} />
+                                                     ))}
+                                                 </div>
+                                             )}
+                                          </div>
+                                     </div>
+                                 </CardHeader>
+                                 <CardContent className="flex-grow space-y-3 pt-2 pb-4 pl-12 pr-4">
+                                     {course.notes && <p className="text-sm text-muted-foreground line-clamp-2 italic">{course.notes}</p>}
+                                     <div className="flex flex-col space-y-1.5 pt-1">
+                                         {course.link && (
+                                             <Link href={course.link} target="_blank" rel="noopener noreferrer" className="text-sm text-primary/80 hover:underline flex items-center gap-1.5">
+                                                 <BookOpen className="h-3.5 w-3.5" /> Course Page
+                                             </Link>
+                                         )}
+                                         {course.certificateUrl && (
+                                             <Link href={course.certificateUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary/80 hover:underline flex items-center gap-1.5">
+                                                 <LinkIcon className="h-3.5 w-3.5" /> View Certificate
+                                             </Link>
+                                         )}
+                                     </div>
+                                 </CardContent>
+                                 <CardFooter className="flex justify-end gap-2 p-3 pt-0 border-t bg-secondary/10">
+                                      <AlertDialog>
+                                       <AlertDialogTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90 hover:bg-destructive/10" aria-label={`Delete completed course "${course.title}"`}>
+                                             <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                       </AlertDialogTrigger>
+                                       <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                              <AlertDialogTitle>Delete Completed Course?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                  This will permanently delete the course "{course.title}". This action cannot be undone.
+                                              </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => handleDeleteCourse(course.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                          </AlertDialogFooter>
+                                       </AlertDialogContent>
+                                     </AlertDialog>
+                                 </CardFooter>
+                             </Card>
+                         ))}
+                     </div>
                  </div>
-             )}
-         </div>
+              )}
+         </>
        ) : (
            // Optional: Message if user isn't loaded yet
            <div className="text-center text-muted-foreground italic py-10">

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Pencil, Trash2, Info } from 'lucide-react'; // Added Info
+import { Checkbox } from '@/components/ui/checkbox'; // Import Checkbox
 import {
     AlertDialog,
     AlertDialogAction,
@@ -26,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 import type { Project } from '@/types'; // Use specific Project type
 import { cn } from '@/lib/utils'; // Import cn utility
+import { format, isPast, isToday } from 'date-fns'; // Import date-fns
 
 export default function ProjectsPage() {
   const [userName, setUserName] = useState<string | null>(null);
@@ -86,12 +88,15 @@ export default function ProjectsPage() {
      };
 
      const tags = tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== '');
-     const projectData: Omit<Project, 'id' | 'completed'> = {
+     const isCompleted = status === 'Completed'; // Determine completion based on status
+
+     const projectData: Omit<Project, 'id'> = {
         description: description.trim(),
         details: details.trim() || undefined,
         dueDate: new Date(dueDate).toISOString(), // Store as ISO string
         tags,
         status,
+        completed: isCompleted, // Sync completed field
      };
 
      if (editingProject) {
@@ -99,7 +104,6 @@ export default function ProjectsPage() {
        const updatedProject: Project = {
          ...projectData,
          id: editingProject.id,
-         completed: status === 'Completed', // Mark completed based on status
        };
        setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
        toast({ title: "Project Updated", description: `"${updatedProject.description}" updated.` });
@@ -108,7 +112,6 @@ export default function ProjectsPage() {
        const newProject: Project = {
          ...projectData,
          id: crypto.randomUUID(),
-         completed: status === 'Completed',
        };
        setProjects(prev => [...prev, newProject]);
        toast({ title: "Project Added", description: `"${newProject.description}" added.` });
@@ -136,10 +139,41 @@ export default function ProjectsPage() {
         setIsFormOpen(false); // Close the form
    };
 
-    // Sort projects using useMemo
+   // Handler to toggle project completion status (updates status as well)
+   const handleToggleComplete = (id: string) => {
+     const projectToUpdate = projects.find(p => p.id === id);
+     if (!projectToUpdate) return;
+
+     const wasCompleted = projectToUpdate.completed;
+     const newStatus = wasCompleted ? 'In Progress' : 'Completed'; // Or maybe 'Planning' if uncompleting? Decide logic.
+
+     setProjects(prevProjects =>
+       prevProjects.map(p =>
+         p.id === id ? { ...p, completed: !wasCompleted, status: newStatus } : p
+       )
+     );
+
+     toast({
+       title: `Project ${wasCompleted ? 'Marked Incomplete' : 'Marked Complete'}`,
+       description: `"${projectToUpdate.description}" marked as ${newStatus.toLowerCase()}.`,
+       variant: wasCompleted ? 'default' : 'success',
+     });
+   };
+
+    // Sort projects: Incomplete first, then Completed. Within groups, by due date ascending.
     const sortedProjects = useMemo(() => {
-        return [...projects].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+        return [...projects].sort((a, b) => {
+             if (a.completed !== b.completed) {
+                return a.completed ? 1 : -1; // Incomplete first
+             }
+             // Then sort by due date ascending
+            return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        });
     }, [projects]);
+
+     // Separate into upcoming and completed *after* sorting
+    const upcomingProjects = sortedProjects.filter(p => !p.completed);
+    const completedProjects = sortedProjects.filter(p => p.completed);
 
   // Render skeleton or null during SSR and initial client render before mount
    if (!isClient) {
@@ -218,6 +252,11 @@ export default function ProjectsPage() {
                     <Label htmlFor="proj-tags">Tags (comma-separated)</Label>
                     <Input id="proj-tags" value={tagsInput} onChange={e => setTagsInput(e.target.value)} placeholder="e.g., web, mobile, learning" className="h-10 mt-1"/>
                   </div>
+                   {/* Checkbox for Completed (read-only, derived from status) - Or remove if status is primary */}
+                   {/* <div className="flex items-center space-x-2">
+                        <Checkbox id="proj-completed-form" checked={status === 'Completed'} disabled />
+                        <Label htmlFor="proj-completed-form" className="text-muted-foreground">Completed (based on status)</Label>
+                   </div> */}
                 </CardContent>
                 <CardFooter className="flex justify-end space-x-2 bg-secondary/20 p-4 border-t">
                   <Button type="button" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
@@ -227,67 +266,159 @@ export default function ProjectsPage() {
             </Card>
           )}
 
-
-          {/* Project List */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {sortedProjects.length > 0 ? sortedProjects.map(project => (
-                   <Card key={project.id} className="flex flex-col border border-border/50 shadow-sm transition-shadow duration-200 hover:shadow-lg hover:border-primary/30">
-                       <CardHeader className="pb-3"> {/* Reduced padding */}
-                           <div className="flex justify-between items-start gap-2">
-                               <CardTitle className="text-lg">{project.description}</CardTitle>
-                                <Badge
-                                  variant={project.status === 'Completed' ? 'default' : project.status === 'In Progress' ? 'secondary' : 'outline'}
-                                  className={cn(
-                                       'capitalize', // Capitalize status
-                                       project.status === 'Completed' && 'bg-success text-success-foreground',
-                                       project.status === 'On Hold' && 'bg-destructive text-destructive-foreground',
-                                       project.status === 'In Progress' && 'bg-secondary text-secondary-foreground',
-                                       project.status === 'Planning' && 'border-primary text-primary'
-                                   )}
-                                  >
-                                   {project.status || 'Planning'}
-                               </Badge>
-                           </div>
-                           <CardDescription className="pt-1">Due: {new Date(project.dueDate).toLocaleDateString()}</CardDescription>
-                       </CardHeader>
-                       <CardContent className="flex-grow space-y-3 pt-0 pb-4 pl-6 pr-4"> {/* Adjusted padding */}
-                           {project.details && <p className="text-sm text-muted-foreground line-clamp-3">{project.details}</p>}
-                           <div className="flex flex-wrap gap-1.5 pt-1"> {/* Added padding */}
-                             {(project.tags || []).map(tag => <Badge key={tag} variant="secondary" className="font-normal">{tag}</Badge>)}
-                           </div>
-                       </CardContent>
-                       <CardFooter className="flex justify-end gap-2 p-3 pt-0 border-t bg-secondary/20">
-                           <Button variant="ghost" size="icon" onClick={() => handleEditClick(project)} aria-label={`Edit project "${project.description}"`}>
-                               <Pencil className="h-4 w-4" />
-                           </Button>
-                           <AlertDialog>
-                             <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90 hover:bg-destructive/10" aria-label={`Delete project "${project.description}"`}>
-                                   <Trash2 className="h-4 w-4" />
-                                </Button>
-                             </AlertDialogTrigger>
-                             <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Project?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This will permanently delete "{project.description}". This action cannot be undone.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteProject(project.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                             </AlertDialogContent>
-                           </AlertDialog>
-                       </CardFooter>
-                   </Card>
-               )) : (
-                    <div className="col-span-full text-center py-10 px-4 border border-dashed rounded-lg">
-                       <Info className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
-                       <p className="text-muted-foreground italic">No projects yet. Click "Add Project" to get started!</p>
+           {/* Upcoming Projects List */}
+           <div>
+              <h2 className="text-2xl font-semibold mb-4 text-primary border-b pb-2">Upcoming Projects</h2>
+                {upcomingProjects.length > 0 ? (
+                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {upcomingProjects.map(project => (
+                           <Card key={project.id} className="flex flex-col border border-border/50 shadow-sm transition-shadow duration-200 hover:shadow-lg hover:border-primary/30">
+                               <CardHeader className="flex flex-row items-start gap-3 space-y-0 pb-2 pt-4 pr-4 pl-4">
+                                    <div className="flex items-center h-6 mt-1">
+                                      <Checkbox
+                                        id={`proj-check-${project.id}`}
+                                        checked={project.completed}
+                                        onCheckedChange={() => handleToggleComplete(project.id)}
+                                        aria-label={`Mark project "${project.description}" as complete`}
+                                        className="peer size-5 rounded border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                                      />
+                                    </div>
+                                   <div className="grid gap-0.5 flex-1">
+                                        <div className="flex justify-between items-start gap-2">
+                                           <CardTitle className="text-lg peer-data-[state=checked]:line-through peer-data-[state=checked]:text-muted-foreground">
+                                               {project.description}
+                                           </CardTitle>
+                                            <Badge
+                                              variant={project.status === 'Completed' ? 'default' : project.status === 'In Progress' ? 'secondary' : 'outline'}
+                                              className={cn(
+                                                   'capitalize whitespace-nowrap',
+                                                   project.status === 'Completed' && 'bg-success text-success-foreground',
+                                                   project.status === 'On Hold' && 'bg-destructive text-destructive-foreground',
+                                                   project.status === 'In Progress' && 'bg-secondary text-secondary-foreground',
+                                                   project.status === 'Planning' && 'border-primary text-primary'
+                                               )}
+                                              >
+                                               {project.status || 'Planning'}
+                                           </Badge>
+                                        </div>
+                                        <CardDescription className={cn("pt-1 text-xs text-muted-foreground",
+                                            isPast(new Date(project.dueDate)) && !isToday(new Date(project.dueDate)) ? 'text-destructive font-semibold' :
+                                            isToday(new Date(project.dueDate)) ? 'text-orange-600 dark:text-orange-400 font-semibold' : ''
+                                        )}>
+                                            Due: {format(new Date(project.dueDate), 'PPP')}
+                                            {isPast(new Date(project.dueDate)) && !isToday(new Date(project.dueDate)) && ' (Overdue)'}
+                                            {isToday(new Date(project.dueDate)) && ' (Today)'}
+                                        </CardDescription>
+                                   </div>
+                               </CardHeader>
+                               <CardContent className="flex-grow space-y-3 pt-2 pb-4 pl-12 pr-4">
+                                   {project.details && <p className="text-sm text-muted-foreground line-clamp-3">{project.details}</p>}
+                                   <div className="flex flex-wrap gap-1.5 pt-1">
+                                     {(project.tags || []).map(tag => <Badge key={tag} variant="secondary" className="font-normal">{tag}</Badge>)}
+                                   </div>
+                               </CardContent>
+                               <CardFooter className="flex justify-end gap-2 p-3 pt-0 border-t bg-secondary/20">
+                                   <Button variant="ghost" size="icon" onClick={() => handleEditClick(project)} aria-label={`Edit project "${project.description}"`}>
+                                       <Pencil className="h-4 w-4" />
+                                   </Button>
+                                   <AlertDialog>
+                                     <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90 hover:bg-destructive/10" aria-label={`Delete project "${project.description}"`}>
+                                           <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                     </AlertDialogTrigger>
+                                     <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete Project?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will permanently delete "{project.description}". This action cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteProject(project.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                     </AlertDialogContent>
+                                   </AlertDialog>
+                               </CardFooter>
+                           </Card>
+                       ))}
                    </div>
-               )}
+                 ) : (
+                      <div className="col-span-full text-center py-10 px-4 border border-dashed rounded-lg">
+                         <Info className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+                         <p className="text-muted-foreground italic">No upcoming projects yet. Click "Add Project" to get started!</p>
+                     </div>
+                 )}
            </div>
+
+             {/* Completed Projects List */}
+             {completedProjects.length > 0 && (
+                 <div className="mt-12">
+                     <h2 className="text-2xl font-semibold mb-4 text-success border-b pb-2">Completed Projects</h2>
+                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                         {completedProjects.map(project => (
+                              <Card key={project.id} className="flex flex-col border border-border/40 bg-card/80 shadow-sm opacity-80 hover:opacity-100 transition-opacity duration-200">
+                                 <CardHeader className="flex flex-row items-start gap-3 space-y-0 pb-2 pt-4 pr-4 pl-4">
+                                      <div className="flex items-center h-6 mt-1">
+                                        <Checkbox
+                                          id={`proj-check-${project.id}`}
+                                          checked={project.completed}
+                                          onCheckedChange={() => handleToggleComplete(project.id)}
+                                          aria-label={`Mark project "${project.description}" as incomplete`}
+                                          className="peer size-5 rounded border-success data-[state=checked]:bg-success data-[state=checked]:text-primary-foreground data-[state=checked]:border-success"
+                                        />
+                                      </div>
+                                     <div className="grid gap-0.5 flex-1">
+                                          <CardTitle className="text-lg line-through text-muted-foreground">
+                                              {project.description}
+                                          </CardTitle>
+                                          <CardDescription className="text-xs text-muted-foreground">
+                                              Completed (Due: {format(new Date(project.dueDate), 'PPP')})
+                                          </CardDescription>
+                                     </div>
+                                     <Badge
+                                          variant='default'
+                                          className={cn(
+                                               'capitalize whitespace-nowrap bg-success text-success-foreground'
+                                           )}
+                                          >
+                                           {project.status || 'Completed'}
+                                       </Badge>
+                                 </CardHeader>
+                                 <CardContent className="flex-grow space-y-3 pt-2 pb-4 pl-12 pr-4">
+                                     {project.details && <p className="text-sm text-muted-foreground line-clamp-2 italic">{project.details}</p>}
+                                     <div className="flex flex-wrap gap-1.5 pt-1">
+                                       {(project.tags || []).map(tag => <Badge key={tag} variant="secondary" className="font-normal">{tag}</Badge>)}
+                                     </div>
+                                 </CardContent>
+                                 <CardFooter className="flex justify-end gap-2 p-3 pt-0 border-t bg-secondary/10">
+                                     <AlertDialog>
+                                       <AlertDialogTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90 hover:bg-destructive/10" aria-label={`Delete completed project "${project.description}"`}>
+                                             <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                       </AlertDialogTrigger>
+                                       <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                              <AlertDialogTitle>Delete Completed Project?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                  This will permanently delete "{project.description}". This action cannot be undone.
+                                              </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => handleDeleteProject(project.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                          </AlertDialogFooter>
+                                       </AlertDialogContent>
+                                     </AlertDialog>
+                                 </CardFooter>
+                             </Card>
+                         ))}
+                     </div>
+                 </div>
+             )}
+
          </>
       ) : (
           // Optional: Show a loading state or message while waiting for mount/userName

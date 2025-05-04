@@ -161,12 +161,21 @@ export default function EventsPage() {
 
    // Sort events: Upcoming first, then past. Within each group, sort by start date ascending.
    const sortedEvents = useMemo(() => {
-       const now = new Date().getTime();
+       const now = new Date(); // Use start of today for comparison consistency
+       now.setHours(0, 0, 0, 0);
+       const nowTime = now.getTime();
+
        return [...events].sort((a, b) => {
-           const dateA = new Date(a.startDate).getTime();
-           const dateB = new Date(b.startDate).getTime();
-           const isAPast = dateA < now && !isToday(dateA);
-           const isBPast = dateB < now && !isToday(dateB);
+           const dateAStart = new Date(a.startDate);
+           dateAStart.setHours(0, 0, 0, 0);
+           const dateA = dateAStart.getTime();
+
+           const dateBStart = new Date(b.startDate);
+           dateBStart.setHours(0, 0, 0, 0);
+           const dateB = dateBStart.getTime();
+
+           const isAPast = dateA < nowTime;
+           const isBPast = dateB < nowTime;
 
            if (isAPast !== isBPast) {
                return isAPast ? 1 : -1; // Past events go last
@@ -176,8 +185,20 @@ export default function EventsPage() {
    }, [events]);
 
    // Separate into upcoming and past after sorting
-   const upcomingEvents = sortedEvents.filter(event => !isPast(new Date(event.startDate)) || isToday(new Date(event.startDate)));
-   const pastEvents = sortedEvents.filter(event => isPast(new Date(event.startDate)) && !isToday(new Date(event.startDate)));
+    const upcomingEvents = sortedEvents.filter(event => {
+        const dateStart = new Date(event.startDate);
+        dateStart.setHours(0, 0, 0, 0);
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        return dateStart.getTime() >= todayStart.getTime();
+    });
+    const pastEvents = sortedEvents.filter(event => {
+        const dateStart = new Date(event.startDate);
+        dateStart.setHours(0, 0, 0, 0);
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        return dateStart.getTime() < todayStart.getTime();
+    });
 
 
    // Render skeleton
@@ -312,6 +333,7 @@ export default function EventsPage() {
                                  <CardDescription className="text-xs text-muted-foreground pt-1">
                                     {format(new Date(event.startDate), 'PPP')}
                                     {event.endDate && ` - ${format(new Date(event.endDate), 'PPP')}`}
+                                    {isToday(new Date(event.startDate)) && <span className="text-orange-600 dark:text-orange-400 font-semibold"> (Today)</span>}
                                  </CardDescription>
                              </CardHeader>
                              <CardContent className="flex-grow space-y-3 pt-0 pb-4 pl-6 pr-4">
@@ -382,6 +404,10 @@ export default function EventsPage() {
                                      )}
                                 </CardContent>
                                 <CardFooter className="flex justify-end gap-2 p-3 pt-0 border-t bg-secondary/10">
+                                     {/* Edit button removed for past events, can be re-added if needed */}
+                                     {/* <Button variant="ghost" size="icon" onClick={() => handleEditClick(event)} aria-label={`Edit past event "${event.title}"`}>
+                                         <Pencil className="h-4 w-4" />
+                                     </Button> */}
                                      <AlertDialog>
                                        <AlertDialogTrigger asChild>
                                           <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90 hover:bg-destructive/10" aria-label={`Delete past event "${event.title}"`}>
