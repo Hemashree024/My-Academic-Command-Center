@@ -1,21 +1,13 @@
 import type {Metadata} from 'next';
-import {Geist, Geist_Mono} from 'next/font/google';
+import { Inter } from 'next/font/google'; // Using Inter font
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster" // Import Toaster
+import { Toaster } from "@/components/ui/toaster"
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'NextUp - College To-Do List', // Updated title
-  description: 'Manage your college tasks efficiently with NextUp.', // Updated description
+  title: 'NextUp - Your College Dashboard', // Updated title
+  description: 'Manage assignments, projects, placements, certificates, and courses all in one place.', // Updated description
 };
 
 export default function RootLayout({
@@ -25,9 +17,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${inter.className} antialiased`}>
         {children}
-        <Toaster /> {/* Add Toaster here */}
+        <Toaster /> {/* Toaster for notifications */}
       </body>
     </html>
   );
