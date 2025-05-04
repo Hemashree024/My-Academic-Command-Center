@@ -89,49 +89,49 @@ export default function DashboardLayout({
         <SidebarContent className="p-2">
           <SidebarMenu>
             <SidebarMenuItem>
-               {/* Use pathname for isActive check */}
+               {/* Use pathname for isActive check and pass href */}
               <SidebarMenuButton href="/dashboard" tooltip="Dashboard" isActive={pathname === '/dashboard'}>
                 <LayoutDashboard />
                 <span>Dashboard</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-               {/* Use pathname for isActive check */}
+               {/* Use pathname for isActive check and pass href */}
               <SidebarMenuButton href="/dashboard/assignments" tooltip="Assignments" isActive={pathname === '/dashboard/assignments'}>
                 <BookCheck />
                 <span>Assignments</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              {/* Use pathname for isActive check */}
+              {/* Use pathname for isActive check and pass href */}
               <SidebarMenuButton href="/dashboard/projects" tooltip="Projects" isActive={pathname === '/dashboard/projects'}>
                 <FolderKanban />
                 <span>Projects</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>
-               {/* Use pathname for isActive check */}
+               {/* Use pathname for isActive check and pass href */}
               <SidebarMenuButton href="/dashboard/college-projects" tooltip="College Projects" isActive={pathname === '/dashboard/college-projects'}>
                 <Briefcase /> {/* Using Briefcase as stand-in */}
                 <span>College Projects</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-               {/* Use pathname for isActive check */}
+               {/* Use pathname for isActive check and pass href */}
               <SidebarMenuButton href="/dashboard/placements" tooltip="Placements" isActive={pathname === '/dashboard/placements'}>
                 <Briefcase />
                 <span>Placements</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-               {/* Use pathname for isActive check */}
+               {/* Use pathname for isActive check and pass href */}
               <SidebarMenuButton href="/dashboard/certificates" tooltip="Certificates" isActive={pathname === '/dashboard/certificates'}>
                 <Award />
                 <span>Certificates</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-               {/* Use pathname for isActive check */}
+               {/* Use pathname for isActive check and pass href */}
               <SidebarMenuButton href="/dashboard/courses" tooltip="Courses" isActive={pathname === '/dashboard/courses'}>
                 <GraduationCap />
                 <span>Courses</span>
@@ -158,3 +158,4 @@ export default function DashboardLayout({
     </SidebarProvider>
   );
 }
+

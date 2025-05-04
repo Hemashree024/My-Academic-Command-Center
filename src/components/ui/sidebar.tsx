@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link" // Import next/link
 import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
 import { PanelLeft } from "lucide-react"
@@ -534,8 +535,8 @@ const sidebarMenuButtonVariants = cva(
 )
 
 const SidebarMenuButton = React.forwardRef<
-  HTMLButtonElement,
-  React.ComponentProps<"button"> & {
+  HTMLAnchorElement, // Changed from HTMLButtonElement to HTMLAnchorElement
+  React.ComponentProps<typeof Link> & { // Changed from button props to Link props
     asChild?: boolean
     isActive?: boolean
     tooltip?: string | React.ComponentProps<typeof TooltipContent>
@@ -549,26 +550,41 @@ const SidebarMenuButton = React.forwardRef<
       size = "default",
       tooltip,
       className,
+      href, // Explicitly expect href for Link
       ...props
     },
     ref
   ) => {
-    const Comp = asChild ? Slot : "button"
-    const { isMobile, state } = useSidebar()
+    const Comp = asChild ? Slot : Link; // Use Link as the default component
+    const { isMobile, state, setOpenMobile } = useSidebar(); // Get setOpenMobile to close mobile sidebar on click
 
-    const button = (
+    // Handle click for mobile sidebar closure
+    const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+        if (isMobile) {
+            setOpenMobile(false);
+        }
+        // If there's an onClick prop from the parent, call it
+        if (props.onClick) {
+            props.onClick(event);
+        }
+    };
+
+
+    const buttonContent = (
       <Comp
         ref={ref}
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
+        href={href} // Pass href to Link
+        onClick={handleClick} // Add click handler
         {...props}
       />
     )
 
     if (!tooltip) {
-      return button
+      return buttonContent
     }
 
     if (typeof tooltip === "string") {
@@ -579,7 +595,7 @@ const SidebarMenuButton = React.forwardRef<
 
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
         <TooltipContent
           side="right"
           align="center"
